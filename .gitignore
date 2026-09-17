@@ -1,0 +1,8 @@
+.venv/
+.run-venv/
+__pycache__/
+*.py[cod]
+.env
+*.log
+data/audit.log
+PROJECT_MEMORY.md
