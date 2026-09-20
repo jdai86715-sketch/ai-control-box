@@ -76,6 +76,7 @@ flowchart TD
 | `get_temperature(room)` | 模拟房间温度 |
 | `get_system_time()` | Windows 系统时间 |
 | `get_weather()` | 当前配置坐标的实时天气 |
+| `list_tools()` | 输出英文 `name / description` 工具表 |
 
 天气调用 Open-Meteo；位置由 [settings/environment.json](settings/environment.json) 决定，也可在网页右上角齿轮中修改。城市字段用于显示，经纬度才是实际查询依据。
 
@@ -102,6 +103,8 @@ C:\Users\<用户名>\.cache\cactus-needle\v3\3.0.1\needle3.cact
 4. 通过网页提交一条明确英文指令，确认 JSON、执行结果都正确。
 
 小模型的 schema 与演示指令目前以英文为主。中文检索词能让索引选择正确候选工具，但不能替代模型本身的中文理解能力。
+
+每次成功调用底部会显示 `耗时 · tok/s`，例如 `0.18s · 557 tok/s`。耗时覆盖模型筛选、Needle 推理与工具执行；`tok/s` 使用 Needle 返回的生成速度。
 
 ## 当前范围
 

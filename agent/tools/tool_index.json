@@ -13,5 +13,8 @@
   },
   "get_weather": {
     "keywords": ["weather", "rain", "sunny", "forecast", "天气", "下雨", "气温", "外面冷"]
+  },
+  "list_tools": {
+    "keywords": ["available tools", "tool list", "tools list", "tools", "有哪些工具", "有什么工具", "工具列表"]
   }
 }

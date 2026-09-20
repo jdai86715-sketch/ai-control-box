@@ -7,10 +7,20 @@ function addTurn(text, data) {
   const turn = document.createElement('article');
   turn.innerHTML = `<p class="query">${escapeHtml(text)}</p>${data.calls?.length ? `<pre>${escapeHtml(JSON.stringify(data.calls, null, 2))}</pre>` : ''}`;
   for (const result of data.results || []) {
+    if (result.event === 'tools.list') {
+      turn.appendChild(toolTable(result.data.tools || []));
+      continue;
+    }
     const message = document.createElement('p');
     message.className = result.ok ? 'result' : 'error';
     message.textContent = result.message;
     turn.appendChild(message);
+  }
+  if (Number.isFinite(data.stats?.decode_tps)) {
+    const stats = document.createElement('p');
+    stats.className = 'stats';
+    stats.textContent = `${data.stats.elapsed_seconds.toFixed(2)}s · ${Math.round(data.stats.decode_tps)} tok/s`;
+    turn.appendChild(stats);
   }
   if (!data.calls?.length) {
     const message = document.createElement('p');
@@ -21,6 +31,20 @@ function addTurn(text, data) {
   conversation.querySelector('.empty')?.remove();
   conversation.appendChild(turn);
   conversation.scrollTop = conversation.scrollHeight;
+}
+
+function toolTable(tools) {
+  const table = document.createElement('table');
+  table.className = 'tool-table';
+  table.innerHTML = '<thead><tr><th>Tool</th><th>Description</th></tr></thead>';
+  const body = document.createElement('tbody');
+  for (const tool of tools) {
+    const row = document.createElement('tr');
+    row.innerHTML = `<td>${escapeHtml(tool.name)}</td><td>${escapeHtml(tool.description)}</td>`;
+    body.appendChild(row);
+  }
+  table.appendChild(body);
+  return table;
 }
 
 function escapeHtml(value) {

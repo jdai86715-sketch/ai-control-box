@@ -21,20 +21,37 @@ from .device import get_temperature, set_fan, set_light
 from .environment import get_system_time, get_weather
 
 
+TOOL_DESCRIPTIONS = {
+    "set_light": "Control a simulated room light and brightness.",
+    "set_fan": "Control a simulated room fan speed.",
+    "get_temperature": "Read a simulated room temperature.",
+    "get_system_time": "Read the current local system date and time.",
+    "get_weather": "Read the current weather for the configured location.",
+    "list_tools": "List all available local tools.",
+}
+
+
+def list_tools() -> ToolResult:
+    items = [{"name": name, "description": description} for name, description in TOOL_DESCRIPTIONS.items()]
+    return ToolResult(True, "tools.list", {"tools": items}, "Available tools")
+
+
 TOOLS: dict[str, Callable[..., ToolResult]] = {
     "set_light": set_light,
     "set_fan": set_fan,
     "get_temperature": get_temperature,
     "get_system_time": get_system_time,
     "get_weather": get_weather,
+    "list_tools": list_tools,
 }
 
 TOOL_SCHEMAS: list[dict[str, Any]] = [
     {"name": "set_light", "description": "Turn on a simulated room light and optionally set brightness.", "parameters": {"type": "object", "properties": {"room": {"type": "string", "description": "Room name, such as bedroom or living room."}, "brightness": {"type": "integer", "minimum": 0, "maximum": 100}}, "required": ["room"]}},
     {"name": "set_fan", "description": "Turn on a simulated room fan and set its speed level.", "parameters": {"type": "object", "properties": {"room": {"type": "string", "description": "Room name, such as bedroom or living room."}, "level": {"type": "integer", "minimum": 1, "maximum": 3}}, "required": ["room"]}},
     {"name": "get_temperature", "description": "Read the simulated temperature of a room.", "parameters": {"type": "object", "properties": {"room": {"type": "string", "description": "Room name, such as bedroom or living room."}}, "required": ["room"]}},
-    {"name": "get_system_time", "description": "Read the current local system date and time.", "parameters": {"type": "object", "properties": {}}},
-    {"name": "get_weather", "description": "Read the current weather for the configured location.", "parameters": {"type": "object", "properties": {}}},
+    {"name": "get_system_time", "description": TOOL_DESCRIPTIONS["get_system_time"], "parameters": {"type": "object", "properties": {}}},
+    {"name": "get_weather", "description": TOOL_DESCRIPTIONS["get_weather"], "parameters": {"type": "object", "properties": {}}},
+    {"name": "list_tools", "description": TOOL_DESCRIPTIONS["list_tools"], "parameters": {"type": "object", "properties": {}}},
 ]
 
 TOOL_INDEX_PATH = Path(__file__).with_name("tool_index.json")

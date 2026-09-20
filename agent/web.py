@@ -4,6 +4,7 @@ import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
+from time import perf_counter
 from typing import Any
 import webbrowser
 
@@ -20,10 +21,16 @@ class ControlBox:
         self._model = ModelRouter()
 
     def chat(self, text: str) -> dict[str, Any]:
+        started = perf_counter()
         response = self._model.plan(text)
         calls = response.get("function_calls") or []
         results = [execute(call) for call in calls]
-        return {"model": response, "calls": calls, "results": results}
+        return {
+            "model": response,
+            "calls": calls,
+            "results": results,
+            "stats": {"elapsed_seconds": perf_counter() - started, "decode_tps": response.get("decode_tps")},
+        }
 
     def reset(self) -> dict[str, bool]:
         self._model.reset()
