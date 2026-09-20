@@ -25,8 +25,22 @@ pre { width: fit-content; max-width: 100%; margin: 0; padding: 0; overflow: auto
 #chat { display: flex; gap: 7px; padding: 14px max(20px, calc((100vw - 680px) / 2)) 22px; }
 #text, #settings-form input { min-width: 0; flex: 1; border: 1px solid #303030; border-radius: 9px; outline: none; padding: 12px 14px; background: #090909; color: #eee; font: 14px "Microsoft YaHei UI", system-ui, sans-serif; }
 #text:focus, #settings-form input:focus { border-color: #666; }
-dialog { width: min(360px, calc(100vw - 40px)); padding: 0; border: 1px solid #303030; border-radius: 12px; background: #0a0a0a; color: #eee; } dialog::backdrop { background: rgba(0, 0, 0, .72); }
+dialog { width: min(360px, calc(100vw - 40px)); padding: 0; overflow: hidden; border: 1px solid #303030; border-radius: 12px; background: #0a0a0a; color: #eee; } dialog::backdrop { background: rgba(0, 0, 0, .72); }
 #settings-form { display: grid; gap: 9px; padding: 44px 18px 18px; position: relative; } #settings-form input { width: 100%; }
+.location-panel { display: grid; gap: 8px; }
+.field-label { display: grid; gap: 5px; color: #8d8d8d; font-size: 12px; }
+.coordinates { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; min-width: 0; }
+.tools-panel { margin-top: 8px; border-top: 1px solid #202020; padding-top: 12px; min-width: 0; }
+.tools-heading { color: #9b9b9b; font-size: 13px; margin-bottom: 7px; }
+.settings-tools { display: grid; gap: 7px; max-height: 170px; min-width: 0; overflow: auto; }
+.settings-tool { display: grid; gap: 2px; min-width: 0; }
+.settings-tool span { color: #ddd; font: 13px Consolas, monospace; }
+.settings-tool small, .plugin-message { color: #777; font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+.plugin-error { margin: 0; color: #b77878; font-size: 12px; }
+.install-plugin { display: inline-grid; width: fit-content; margin-top: 12px; padding: 7px 9px; border: 1px solid #333; border-radius: 6px; color: #bbb; font-size: 12px; cursor: pointer; }
+.install-plugin:hover { border-color: #666; color: #eee; }
+.install-plugin input { display: none; }
+.plugin-message { min-height: 17px; margin: 5px 0 0; }
 .close { position: absolute; top: 9px; right: 10px; width: 30px; height: 30px; border: 0; border-radius: 7px; background: transparent; color: #aaa; font: 22px/1 system-ui; cursor: pointer; }
 .save { justify-self: end; width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 7px; background: #e5e5e5; cursor: pointer; } .save img { filter: invert(1); width: 16px; height: 16px; }
 @media (max-width: 560px) { #conversation { padding-top: 25px; } }

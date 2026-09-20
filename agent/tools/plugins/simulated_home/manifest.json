@@ -1,0 +1,10 @@
+{
+  "id": "simulated_home",
+  "name_zh": "模拟家居",
+  "entry": "tool.py",
+  "tools": [
+    {"name": "set_light", "name_zh": "设置灯光", "description": "Turn on a simulated room light and optionally set brightness.", "description_zh": "打开模拟房间灯光并设置亮度。", "function": "set_light", "triggers": ["\\b(light|lamp)\\b"], "parameters": {"type": "object", "properties": {"room": {"type": "string", "description": "Room name, such as bedroom or living room."}, "brightness": {"type": "integer", "minimum": 0, "maximum": 100}}, "required": ["room"]}},
+    {"name": "set_fan", "name_zh": "设置风扇", "description": "Turn on a simulated room fan and set its speed level.", "description_zh": "打开模拟房间风扇并设置档位。", "function": "set_fan", "triggers": ["\\bfan\\b"], "parameter_aliases": {"level": ["level", "speed"]}, "parameters": {"type": "object", "properties": {"room": {"type": "string", "description": "Room name, such as bedroom or living room."}, "level": {"type": "integer", "minimum": 1, "maximum": 3}}, "required": ["room"]}},
+    {"name": "get_temperature", "name_zh": "读取室温", "description": "Read the simulated temperature of a room.", "description_zh": "读取模拟房间温度。", "function": "get_temperature", "triggers": ["\\b(temp|temperature)\\b"], "parameters": {"type": "object", "properties": {"room": {"type": "string", "description": "Room name, such as bedroom or living room."}}, "required": ["room"]}}
+  ]
+}

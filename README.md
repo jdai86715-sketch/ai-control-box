@@ -30,9 +30,11 @@ ai-control-box/
 │  ├─ needle.py                # 唯一的 Needle 适配边界
 │  ├─ config.py                # 读写 settings/environment.json
 │  ├─ tools/
-│  │  ├─ device.py             # 模拟灯、风扇、室温
-│  │  ├─ environment.py        # 系统时间、Open-Meteo 天气
-│  │  └─ __init__.py           # 工具注册表、schema 与执行入口
+│  │  ├─ runtime.py             # 扫描插件、生成 schema、执行与自动重载
+│  │  └─ plugins/               # 每个工具插件一个文件夹
+│  │     ├─ simulated_home/     # 模拟灯、风扇、室温
+│  │     ├─ environment/        # 系统时间、Open-Meteo 天气
+│  │     └─ tool_catalog/       # 动态列出当前工具
 │  └─ static/                  # 单页纯黑 WebUI 与图标
 └─ models/                     # 预留给未来手动放置 .cact 权重
 ```
@@ -53,7 +55,7 @@ flowchart TD
 
 例如输入 `turn on the bedroom light to 20 percent`：
 
-1. Needle 从完整英文工具表的内置检索索引中选出最多 5 个候选 schema。
+1. 运行时扫描所有已安装插件，合并成完整英文工具表；Needle 从中以内置检索选出最多 5 个候选 schema。
 2. Needle 只在本轮上下文看到候选 schema，返回：
 
    ```json
@@ -67,6 +69,22 @@ flowchart TD
 每条网页输入都是独立的模型会话。工具结果只在当前输入的最多三步循环内回喂，不会污染下一条设备指令。
 
 Needle 在工具超过 5 个时会自动以其内置检索头选择 top-5 并约束调用语法。对 `time`、`fan`、`weather` 这类明确英文领域词，schema 还附有 Needle 原生触发规则，确保检索时不会漏掉对应候选；应用本身不直接选择或执行工具。`models/needle-tools.idx` 是传给 Needle 的索引持久化路径；它不是权重，也不会执行工具。没命中时，系统返回空 `function_calls`。
+
+## 工具插件与自动更新
+
+所有工具（包括现有模拟设备、时间、天气和 `list_tools`）都是 `agent/tools/plugins/<插件 id>/` 下的插件。一个插件至少包含：
+
+```text
+esp32_ir/
+├─ manifest.json    # 英文 schema、中文展示文案、入口与参数约束
+└─ tool.py          # 返回 ToolResult 的 Python 函数
+```
+
+设置页会显示每个工具的中文名称、中文描述及所属插件；“安装文件夹”可选择一个包含 `manifest.json` 的本地插件目录。安装后会自动扫描，不需要刷新按钮。
+
+运行时会检测 `plugins/` 目录的新增、删除和修改：下一条消息前自动重建工具注册表及 Needle 模型；新建对话也会强制检查一次。完整 schema 表交给 Needle 的内置检索，实际注入仍最多 top-5，不会因插件增加而把全部工具塞进短上下文。`list_tools()` 也读取这份动态注册表。
+
+首次安装同 ID 的插件后，如需更新，直接修改其 `agent/tools/plugins/<插件 id>/` 文件夹；检测到文件变化后会自动生效。当前安装器不会覆盖同 ID 的现有插件。
 
 ## 已有工具
 
@@ -98,9 +116,10 @@ C:\Users\<用户名>\.cache\cactus-needle\v3\3.0.1\needle3.cact
 
 ## 增加一个工具
 
-1. 在 `agent/tools/` 选合适模块新增 Python 函数，返回 `ToolResult`。
-2. 在 `agent/tools/__init__.py` 的 `TOOLS` 注册函数，并补上对应 schema。
-3. 通过网页提交一条明确英文指令，确认 JSON、执行结果都正确。
+1. 新建 `agent/tools/plugins/<插件 id>/manifest.json` 和 `tool.py`。
+2. 在 manifest 中填写英文 `name`、`description`、参数 schema、触发词，以及中文 `name_zh`、`description_zh`。
+3. 在 `tool.py` 写同名函数并返回 `ToolResult`；保存后自动扫描。
+4. 通过网页提交一条明确英文指令，确认 JSON、执行结果都正确。
 
 小模型的 schema 与演示指令目前以英文为主；内置检索也依赖这些英文工具描述，不能替代模型本身的中文理解能力。
 

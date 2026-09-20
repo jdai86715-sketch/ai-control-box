@@ -1,13 +1,7 @@
-from __future__ import annotations
-
-from . import ToolResult
+from agent.tools.runtime import ToolResult
 
 
-ROOM_NAMES = {
-    "bedroom": "卧室",
-    "living room": "客厅",
-    "kitchen": "厨房",
-}
+ROOM_NAMES = {"bedroom": "卧室", "living room": "客厅", "kitchen": "厨房"}
 
 
 def room_label(room: str) -> str:
@@ -31,5 +25,4 @@ def set_fan(room: str, level: int = 1) -> ToolResult:
 
 def get_temperature(room: str) -> ToolResult:
     label = room_label(room)
-    temperature = 24
-    return ToolResult(True, "temperature.read", {"room": label, "temperature": temperature}, f"{label}当前温度 {temperature}°C")
+    return ToolResult(True, "temperature.read", {"room": label, "temperature": 24}, f"{label}当前温度 24°C")

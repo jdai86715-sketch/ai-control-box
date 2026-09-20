@@ -10,7 +10,7 @@ import webbrowser
 
 from .config import get_settings, save_settings
 from .models import ModelRouter
-from .tools import constraint_error, execute, input_constraint_error, tool_schemas
+from .tools import constraint_error, execute, get_registry, input_constraint_error, install_plugin_files, tool_schemas
 
 
 STATIC = Path(__file__).with_name("static")
@@ -66,6 +66,14 @@ class ControlBox:
         self._model.reset()
         return {"ok": True}
 
+    def tools(self) -> dict[str, Any]:
+        return get_registry().settings_tools()
+
+    def install_plugin(self, files: list[dict[str, Any]]) -> dict[str, Any]:
+        result = install_plugin_files(files)
+        self._model.reset()
+        return result
+
 
 def handler_for(box: ControlBox) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
@@ -82,6 +90,8 @@ def handler_for(box: ControlBox) -> type[BaseHTTPRequestHandler]:
                     self._json(200, box.reset())
                 elif self.path == "/api/settings":
                     self._json(200, save_settings(body))
+                elif self.path == "/api/plugins/install":
+                    self._json(200, box.install_plugin(list(body.get("files") or [])))
                 else:
                     self._json(404, {"error": "not found"})
             except Exception as error:
@@ -90,6 +100,9 @@ def handler_for(box: ControlBox) -> type[BaseHTTPRequestHandler]:
         def do_GET(self) -> None:
             if self.path == "/api/settings":
                 self._json(200, get_settings())
+                return
+            if self.path == "/api/tools":
+                self._json(200, box.tools())
                 return
             name = "index.html" if self.path in {"/", "/index.html"} else self.path.lstrip("/")
             target = (STATIC / name).resolve()

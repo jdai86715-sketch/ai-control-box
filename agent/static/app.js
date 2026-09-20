@@ -119,17 +119,25 @@ document.getElementById('reset').addEventListener('click', async () => {
 
 const dialog = document.getElementById('settings-dialog');
 const settingsForm = document.getElementById('settings-form');
+const settingsTools = document.getElementById('settings-tools');
+const pluginFolder = document.getElementById('plugin-folder');
+const pluginMessage = document.getElementById('plugin-message');
+let toolsTimer;
 document.getElementById('settings').addEventListener('click', async () => {
-  const response = await fetch('/api/settings');
-  const settings = await response.json();
+  const [response, toolsResponse] = await Promise.all([fetch('/api/settings'), fetch('/api/tools')]);
+  const [settings, tools] = await Promise.all([response.json(), toolsResponse.json()]);
   const location = settings.location;
   document.getElementById('city').value = location.city;
   document.getElementById('latitude').value = location.latitude;
   document.getElementById('longitude').value = location.longitude;
+  renderSettingsTools(tools);
   dialog.showModal();
+  clearInterval(toolsTimer);
+  toolsTimer = setInterval(loadSettingsTools, 1500);
 });
 
 document.getElementById('close-settings').addEventListener('click', () => dialog.close());
+dialog.addEventListener('close', () => clearInterval(toolsTimer));
 settingsForm.addEventListener('submit', async event => {
   event.preventDefault();
   const location = {
@@ -140,4 +148,50 @@ settingsForm.addEventListener('submit', async event => {
   const response = await fetch('/api/settings', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({location})});
   if (!response.ok) return;
   dialog.close();
+});
+
+async function loadSettingsTools() {
+  if (!dialog.open) return;
+  const response = await fetch('/api/tools');
+  if (response.ok) renderSettingsTools(await response.json());
+}
+
+function renderSettingsTools(data) {
+  settingsTools.replaceChildren();
+  for (const tool of data.tools || []) {
+    const row = document.createElement('div');
+    row.className = 'settings-tool';
+    const name = document.createElement('span');
+    name.textContent = tool.name;
+    const description = document.createElement('small');
+    description.textContent = String(tool.description_zh).replace(/[。.]$/, '');
+    row.append(name, description);
+    settingsTools.appendChild(row);
+  }
+  for (const error of data.errors || []) {
+    const row = document.createElement('p');
+    row.className = 'plugin-error';
+    row.textContent = `${error.plugin}: ${error.message}`;
+    settingsTools.appendChild(row);
+  }
+}
+
+pluginFolder.addEventListener('change', async () => {
+  const selected = [...pluginFolder.files];
+  if (!selected.length) return;
+  pluginMessage.textContent = '正在安装…';
+  pluginFolder.disabled = true;
+  try {
+    const files = await Promise.all(selected.map(async file => ({path: file.webkitRelativePath || file.name, content: await file.text()})));
+    const response = await fetch('/api/plugins/install', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({files})});
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || '安装失败');
+    renderSettingsTools(data.tools);
+    pluginMessage.textContent = `已安装 ${data.plugin_id}`;
+  } catch (error) {
+    pluginMessage.textContent = error.message;
+  } finally {
+    pluginFolder.value = '';
+    pluginFolder.disabled = false;
+  }
 });
