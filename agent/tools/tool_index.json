@@ -1,0 +1,17 @@
+{
+  "set_light": {
+    "keywords": ["light", "lamp", "brightness", "dim", "bright", "turn on", "turn off", "灯", "亮度", "开灯", "关灯", "调亮", "调暗"]
+  },
+  "set_fan": {
+    "keywords": ["fan", "speed", "airflow", "风扇", "风速", "档位"]
+  },
+  "get_temperature": {
+    "keywords": ["temperature", "temp", "degrees", "热不热", "温度", "几度"]
+  },
+  "get_system_time": {
+    "keywords": ["time", "clock", "date", "几点", "时间", "日期", "现在几点"]
+  },
+  "get_weather": {
+    "keywords": ["weather", "rain", "sunny", "forecast", "天气", "下雨", "气温", "外面冷"]
+  }
+}

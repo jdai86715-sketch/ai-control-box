@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI 控制盒</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>AI 控制盒</h1>
+      <div class="actions">
+        <button id="reset" class="icon-button" type="button" title="新建对话" aria-label="新建对话"><img src="icons/plus.png" alt=""></button>
+        <button id="settings" class="icon-button" type="button" title="设置" aria-label="设置"><img src="icons/gear.png" alt=""></button>
+      </div>
+    </header>
+    <section id="conversation" aria-live="polite"><p class="empty">输入指令</p></section>
+    <form id="chat"><input id="text" autocomplete="off" placeholder="输入一句指令" autofocus><button id="send" class="icon-button" title="发送" aria-label="发送"><img src="icons/right.png" alt=""></button></form>
+  </main>
+  <dialog id="settings-dialog">
+    <form id="settings-form" method="dialog">
+      <button id="close-settings" class="close" type="button" aria-label="关闭">×</button>
+      <input id="city" placeholder="城市" autocomplete="off">
+      <input id="latitude" placeholder="纬度" inputmode="decimal">
+      <input id="longitude" placeholder="经度" inputmode="decimal">
+      <button id="save-settings" class="save" type="submit" title="保存" aria-label="保存"><img src="icons/checkmark.png" alt=""></button>
+    </form>
+  </dialog>
+  <script src="app.js"></script>
+</body>
+</html>

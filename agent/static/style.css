@@ -1,0 +1,23 @@
+:root { color-scheme: dark; font-family: "Microsoft YaHei UI", system-ui, sans-serif; background: #000; color: #ececec; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: #000; }
+main { width: min(900px, 100vw); height: 100vh; margin: auto; display: grid; grid-template-rows: 56px 1fr auto; }
+header { display: flex; align-items: center; justify-content: space-between; padding: 0 18px; border-bottom: 1px solid #1b1b1b; }
+h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .02em; }
+.actions { display: flex; gap: 2px; }
+.icon-button { width: 38px; height: 38px; display: grid; place-items: center; border: 0; border-radius: 7px; background: transparent; color: #e6e6e6; font: 22px/1 system-ui; cursor: pointer; }
+.icon-button:hover, .close:hover { background: #1b1b1b; } .icon-button:disabled { opacity: .45; cursor: wait; }
+.icon-button img { width: 28px; height: 28px; object-fit: contain; } .save img { width: 17px; height: 17px; object-fit: contain; }
+#conversation { overflow-y: auto; padding: 42px max(20px, calc((100vw - 680px) / 2)); }
+.empty { color: #656565; text-align: center; margin: 25vh 0 0; font-size: 14px; }
+article { margin: 0 0 30px; } .query { max-width: 80%; margin: 0 0 12px auto; text-align: right; color: #dedede; font-size: 15px; }
+pre { width: fit-content; max-width: 100%; margin: 0; padding: 0; overflow: auto; color: #777; background: transparent; font: 12px/1.55 Consolas, monospace; }
+.result, .error { margin: 8px 0 0; font-size: 15px; } .result { color: #eee; } .error { color: #b77878; }
+#chat { display: flex; gap: 7px; padding: 14px max(20px, calc((100vw - 680px) / 2)) 22px; }
+#text, #settings-form input { min-width: 0; flex: 1; border: 1px solid #303030; border-radius: 9px; outline: none; padding: 12px 14px; background: #090909; color: #eee; font: 14px "Microsoft YaHei UI", system-ui, sans-serif; }
+#text:focus, #settings-form input:focus { border-color: #666; }
+dialog { width: min(360px, calc(100vw - 40px)); padding: 0; border: 1px solid #303030; border-radius: 12px; background: #0a0a0a; color: #eee; } dialog::backdrop { background: rgba(0, 0, 0, .72); }
+#settings-form { display: grid; gap: 9px; padding: 44px 18px 18px; position: relative; } #settings-form input { width: 100%; }
+.close { position: absolute; top: 9px; right: 10px; width: 30px; height: 30px; border: 0; border-radius: 7px; background: transparent; color: #aaa; font: 22px/1 system-ui; cursor: pointer; }
+.save { justify-self: end; width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 7px; background: #e5e5e5; cursor: pointer; } .save img { filter: invert(1); width: 16px; height: 16px; }
+@media (max-width: 560px) { #conversation { padding-top: 25px; } }
