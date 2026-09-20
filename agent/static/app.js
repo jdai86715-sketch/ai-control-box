@@ -22,7 +22,7 @@ function addTurn(text, data) {
     stats.textContent = `${data.stats.elapsed_seconds.toFixed(2)}s · ${Math.round(data.stats.decode_tps)} tok/s`;
     turn.appendChild(stats);
   }
-  if (!data.calls?.length) {
+  if (!data.calls?.length && !data.results?.length) {
     const message = document.createElement('p');
     message.className = 'error';
     message.textContent = '没有匹配的工具。';

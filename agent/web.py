@@ -10,7 +10,7 @@ import webbrowser
 
 from .config import get_settings, save_settings
 from .models import ModelRouter
-from .tools import execute
+from .tools import constraint_error, execute
 
 
 STATIC = Path(__file__).with_name("static")
@@ -23,13 +23,26 @@ class ControlBox:
     def chat(self, text: str) -> dict[str, Any]:
         started = perf_counter()
         response = self._model.plan(text)
-        calls = response.get("function_calls") or []
-        results = [execute(call) for call in calls]
+        calls: list[dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
+        first_decode_tps = response.get("decode_tps")
+        for _ in range(3):
+            step_calls = response.get("function_calls") or []
+            if not step_calls:
+                if not calls:
+                    error = constraint_error(response)
+                    if error is not None:
+                        results.append(error)
+                break
+            step_results = [execute(call) for call in step_calls]
+            calls.extend(step_calls)
+            results.extend(step_results)
+            response = self._model.feed_results(step_results)
         return {
             "model": response,
             "calls": calls,
             "results": results,
-            "stats": {"elapsed_seconds": perf_counter() - started, "decode_tps": response.get("decode_tps")},
+            "stats": {"elapsed_seconds": perf_counter() - started, "decode_tps": first_decode_tps},
         }
 
     def reset(self) -> dict[str, bool]:

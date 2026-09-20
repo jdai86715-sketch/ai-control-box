@@ -22,11 +22,13 @@
 - Tk 已移除；`main.py` 与集中在 `agent/` 的模型适配、工具、单页 WebUI 已创建。
 - Needle 已实测返回 `set_light(bedroom, 20)`；Python 工具返回“卧室灯已打开，亮度 20%”；WebUI 已实际显示调用 JSON 与中文结果。
 - WebUI 的“新建对话”按钮已实际验证会清空当前页面记录。
-- 工具表改为先通过 `agent/tool_index.json` 选取候选，再只把候选 schema 注入 Needle；索引不直接执行工具。已验证英文、中文索引词均命中灯光工具，未命中返回空调用。
+- 工具表当前改为由 Needle 内置检索从完整 schema 选择 top-5，再进行调用；工具结果会回喂同一模型会话。
 - 用户确认将可修改环境信息放在项目根目录 `settings/`，并将工具按功能迁入 `agent/tools/`；新增系统时间、Open-Meteo 天气与纯黑极简设置页面。工具、设置接口和页面均已实际验证。
 - 新增 README，记录目录、工具检索与 schema 注入流程、模型缓存位置、启动与扩展方式；新增 `run.bat` 作为 Windows 启动入口。
 - 用户确认每次成功工具调用底部显示简短的总耗时与 Needle 生成速度，并新增可由模型调用的 `list_tools()` 工具。已验证 `what tools are available` 输出调用、英文 `Tool / Description` 表与 `0.12s · 520 tok/s` 样式。
 - 用户要求工具列表改为英文工具表而非中文字符串；普通设备执行反馈仍为中文。
+- 用户确认将应用自建关键词筛选替换为 Needle 内置工具检索，并将每步工具结果 JSON 回喂模型；范围错误需显示具体参数限制。
+- 已验证时间、天气、工具列表会由 Needle 原生触发/检索后调用并回喂；`turn on fan speed 20` 会显示 `set_fan: level must be between 1 and 3.`，不再误报未匹配工具。
 
 ## 下一步
 

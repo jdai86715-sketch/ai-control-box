@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import json
-from pathlib import Path
+import re
 from typing import Any, Callable
 
 
@@ -54,23 +53,23 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
     {"name": "list_tools", "description": TOOL_DESCRIPTIONS["list_tools"], "parameters": {"type": "object", "properties": {}}},
 ]
 
-TOOL_INDEX_PATH = Path(__file__).with_name("tool_index.json")
+TOOL_TRIGGERS = {
+    "set_light": [r"\b(light|lamp)\b"],
+    "set_fan": [r"\bfan\b"],
+    "get_temperature": [r"\b(temp|temperature)\b"],
+    "get_system_time": [r"\b(time|clock|date)\b"],
+    "get_weather": [r"\b(weather|forecast|rain)\b"],
+    "list_tools": [r"\btools?\b"],
+}
 
+for _schema in TOOL_SCHEMAS:
+    _schema["triggers"] = TOOL_TRIGGERS[_schema["name"]]
 
 def tool_schemas(names: list[str] | None = None) -> list[dict[str, Any]]:
     if names is None:
         return TOOL_SCHEMAS
     allowed = set(names)
     return [schema for schema in TOOL_SCHEMAS if schema["name"] in allowed]
-
-
-def select_tools(text: str) -> list[str]:
-    query = text.casefold()
-    index = json.loads(TOOL_INDEX_PATH.read_text(encoding="utf-8"))
-    return [
-        name for name, entry in index.items()
-        if name in TOOLS and any(str(word).casefold() in query for word in entry.get("keywords", []))
-    ]
 
 
 def execute(call: dict[str, Any]) -> dict[str, Any]:
@@ -82,3 +81,24 @@ def execute(call: dict[str, Any]) -> dict[str, Any]:
         return handler(**dict(call.get("arguments") or {})).as_dict()
     except (TypeError, ValueError) as error:
         return ToolResult(False, "tool.error", {"name": name}, f"{name} 参数不正确：{error}").as_dict()
+
+
+def constraint_error(response: dict[str, Any]) -> dict[str, Any] | None:
+    """Turn Needle's range-constrained truncation into a specific user-facing error."""
+    if response.get("error_code") != "truncated":
+        return None
+    reasoning = str(response.get("reasoning", ""))
+    for schema in TOOL_SCHEMAS:
+        for parameter, definition in schema["parameters"].get("properties", {}).items():
+            minimum = definition.get("minimum")
+            maximum = definition.get("maximum")
+            if minimum is None and maximum is None:
+                continue
+            match = re.search(rf"\b{re.escape(parameter)}\s*(?:=|:)?\s*(-?\d+(?:\.\d+)?)", reasoning, re.I)
+            if match is None:
+                continue
+            value = float(match.group(1))
+            if (minimum is not None and value < minimum) or (maximum is not None and value > maximum):
+                limits = f"between {minimum} and {maximum}" if minimum is not None and maximum is not None else f"at least {minimum}" if minimum is not None else f"at most {maximum}"
+                return ToolResult(False, "tool.error", {"name": schema["name"], "parameter": parameter, "value": value}, f"{schema['name']}: {parameter} must be {limits}.").as_dict()
+    return None

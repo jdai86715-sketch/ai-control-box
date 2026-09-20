@@ -30,10 +30,9 @@ ai-control-box/
 │  ├─ needle.py                # 唯一的 Needle 适配边界
 │  ├─ config.py                # 读写 settings/environment.json
 │  ├─ tools/
-│  │  ├─ __init__.py           # 工具注册表、schema、筛选、执行
 │  │  ├─ device.py             # 模拟灯、风扇、室温
 │  │  ├─ environment.py        # 系统时间、Open-Meteo 天气
-│  │  └─ tool_index.json       # 工具的中英文检索词
+│  │  └─ __init__.py           # 工具注册表、schema 与执行入口
 │  └─ static/                  # 单页纯黑 WebUI 与图标
 └─ models/                     # 预留给未来手动放置 .cact 权重
 ```
@@ -43,29 +42,29 @@ ai-control-box/
 ```mermaid
 flowchart TD
     A[用户输入] --> B[web.py: ControlBox.chat]
-    B --> C[tools/tool_index.json: 检索词匹配]
-    C --> D[命中少量工具名]
-    D --> E[tool_schemas(names): 只取候选 schema]
-    E --> F[NeedleModel: 注入候选 schema]
-    F --> G[Needle.complete: function_calls JSON]
-    G --> H[execute: 按注册表 name 找 Python 函数]
-    H --> I[ToolResult: 固定中文反馈]
-    I --> J[WebUI 显示 JSON 与结果]
+    B --> C[Needle 内置工具检索]
+    C --> D[从完整工具表选 top-5 schema]
+    D --> E[Needle.complete: function_calls JSON]
+    E --> F[execute: 按注册表 name 找 Python 函数]
+    F --> G[ToolResult JSON 回喂同一模型会话]
+    G --> H[继续调用或结束]
+    H --> I[WebUI 显示 JSON 与结果]
 ```
 
 例如输入 `turn on the bedroom light to 20 percent`：
 
-1. 索引命中 `set_light`，而不是把所有工具定义交给模型。
-2. Needle 只看到 `set_light` 的 schema，返回：
+1. Needle 从完整英文工具表的内置检索索引中选出最多 5 个候选 schema。
+2. Needle 只在本轮上下文看到候选 schema，返回：
 
    ```json
    {"name":"set_light","arguments":{"room":"bedroom","brightness":20}}
    ```
 
 3. `execute()` 从 `TOOLS` 注册表取出 `set_light(**arguments)` 执行。
-4. 工具返回 `卧室灯已打开，亮度 20%`。
+4. 工具结果 JSON 回喂 Needle；它可继续调用其他工具或结束。
+5. 页面显示 `卧室灯已打开，亮度 20%`。
 
-索引只负责缩小注入上下文，**不会直接执行工具**。没命中索引时，系统返回空 `function_calls`，不会把全量工具表回退给模型。
+Needle 在工具超过 5 个时会自动以其内置检索头选择 top-5 并约束调用语法。对 `time`、`fan`、`weather` 这类明确英文领域词，schema 还附有 Needle 原生触发规则，确保检索时不会漏掉对应候选；应用本身不直接选择或执行工具。`models/needle-tools.idx` 是传给 Needle 的索引持久化路径；它不是权重，也不会执行工具。没命中时，系统返回空 `function_calls`。
 
 ## 已有工具
 
@@ -99,10 +98,9 @@ C:\Users\<用户名>\.cache\cactus-needle\v3\3.0.1\needle3.cact
 
 1. 在 `agent/tools/` 选合适模块新增 Python 函数，返回 `ToolResult`。
 2. 在 `agent/tools/__init__.py` 的 `TOOLS` 注册函数，并补上对应 schema。
-3. 在 `agent/tools/tool_index.json` 为同名工具补中英文检索词。
-4. 通过网页提交一条明确英文指令，确认 JSON、执行结果都正确。
+3. 通过网页提交一条明确英文指令，确认 JSON、执行结果都正确。
 
-小模型的 schema 与演示指令目前以英文为主。中文检索词能让索引选择正确候选工具，但不能替代模型本身的中文理解能力。
+小模型的 schema 与演示指令目前以英文为主；内置检索也依赖这些英文工具描述，不能替代模型本身的中文理解能力。
 
 每次成功调用底部会显示 `耗时 · tok/s`，例如 `0.18s · 557 tok/s`。耗时覆盖模型筛选、Needle 推理与工具执行；`tok/s` 使用 Needle 返回的生成速度。
 
