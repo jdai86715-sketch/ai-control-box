@@ -14,6 +14,11 @@ article { margin: 0 0 30px; } .query { max-width: 80%; margin: 0 0 12px auto; te
 pre { width: fit-content; max-width: 100%; margin: 0; padding: 0; overflow: auto; color: #777; background: transparent; font: 12px/1.55 Consolas, monospace; }
 .result, .error { margin: 8px 0 0; font-size: 15px; } .result { color: #eee; } .error { color: #b77878; }
 .stats { margin: 8px 0 0; color: #686868; font: 12px/1.4 Consolas, monospace; }
+.trace { margin-top: 10px; color: #686868; font: 12px/1.55 Consolas, monospace; }
+.trace summary { width: fit-content; color: #7a7a7a; cursor: pointer; user-select: none; }
+.trace summary:hover { color: #b0b0b0; }
+.trace-body { margin-top: 7px; padding-left: 12px; border-left: 1px solid #222; }
+.trace-line { margin: 3px 0; white-space: pre-wrap; }
 .tool-table { width: 100%; margin-top: 12px; border-collapse: collapse; color: #bdbdbd; font-size: 13px; text-align: left; }
 .tool-table th, .tool-table td { padding: 9px 7px; border-bottom: 1px solid #202020; vertical-align: top; }
 .tool-table th { color: #6f6f6f; font-weight: 500; } .tool-table td:first-child { width: 35%; color: #e3e3e3; font-family: Consolas, monospace; }

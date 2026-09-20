@@ -16,6 +16,7 @@ function addTurn(text, data) {
     message.textContent = result.message;
     turn.appendChild(message);
   }
+  addTrace(turn, data);
   if (Number.isFinite(data.stats?.decode_tps)) {
     const stats = document.createElement('p');
     stats.className = 'stats';
@@ -31,6 +32,46 @@ function addTurn(text, data) {
   conversation.querySelector('.empty')?.remove();
   conversation.appendChild(turn);
   conversation.scrollTop = conversation.scrollHeight;
+}
+
+function addTrace(turn, data) {
+  const trace = data.trace || [];
+  const context = data.context;
+  if (!trace.length && !context) return;
+
+  const details = document.createElement('details');
+  details.className = 'trace';
+  const summary = document.createElement('summary');
+  summary.textContent = 'Reasoning & context';
+  details.appendChild(summary);
+  const body = document.createElement('div');
+  body.className = 'trace-body';
+
+  for (const entry of trace) {
+    if (!entry.reasoning) continue;
+    const line = document.createElement('p');
+    line.className = 'trace-line';
+    line.textContent = `${entry.phase}: ${entry.reasoning}`;
+    body.appendChild(line);
+  }
+  if (context) {
+    const schemas = document.createElement('p');
+    schemas.className = 'trace-line';
+    schemas.textContent = `Context: ${context.declared_tool_schemas} tool schemas declared · Needle retrieves up to ${context.retrieval_limit} candidates`;
+    body.appendChild(schemas);
+    const feedback = document.createElement('p');
+    feedback.className = 'trace-line';
+    feedback.textContent = `Tool-result feedback: ${context.feedback_steps} step${context.feedback_steps === 1 ? '' : 's'}`;
+    body.appendChild(feedback);
+  }
+  if (!body.childElementCount) {
+    const unavailable = document.createElement('p');
+    unavailable.className = 'trace-line';
+    unavailable.textContent = 'Needle returned no reasoning trace for this turn.';
+    body.appendChild(unavailable);
+  }
+  details.appendChild(body);
+  turn.appendChild(details);
 }
 
 function toolTable(tools) {

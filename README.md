@@ -64,6 +64,8 @@ flowchart TD
 4. 工具结果 JSON 回喂 Needle；它可继续调用其他工具或结束。
 5. 页面显示 `卧室灯已打开，亮度 20%`。
 
+每条网页输入都是独立的模型会话。工具结果只在当前输入的最多三步循环内回喂，不会污染下一条设备指令。
+
 Needle 在工具超过 5 个时会自动以其内置检索头选择 top-5 并约束调用语法。对 `time`、`fan`、`weather` 这类明确英文领域词，schema 还附有 Needle 原生触发规则，确保检索时不会漏掉对应候选；应用本身不直接选择或执行工具。`models/needle-tools.idx` 是传给 Needle 的索引持久化路径；它不是权重，也不会执行工具。没命中时，系统返回空 `function_calls`。
 
 ## 已有工具
@@ -101,6 +103,8 @@ C:\Users\<用户名>\.cache\cactus-needle\v3\3.0.1\needle3.cact
 3. 通过网页提交一条明确英文指令，确认 JSON、执行结果都正确。
 
 小模型的 schema 与演示指令目前以英文为主；内置检索也依赖这些英文工具描述，不能替代模型本身的中文理解能力。
+
+执行前会检查原始指令中的参数范围。例如风扇只接受 `level` 1～3，`fan speed 100` 会返回 `set_fan: level must be between 1 and 3.`，不会忽略 `100` 后执行默认档位。当前房间仅支持 `bedroom`、`living room`、`kitchen`。
 
 每次成功调用底部会显示 `耗时 · tok/s`，例如 `0.18s · 557 tok/s`。耗时覆盖模型筛选、Needle 推理与工具执行；`tok/s` 使用 Needle 返回的生成速度。
 

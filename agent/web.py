@@ -10,7 +10,7 @@ import webbrowser
 
 from .config import get_settings, save_settings
 from .models import ModelRouter
-from .tools import constraint_error, execute
+from .tools import constraint_error, execute, input_constraint_error, tool_schemas
 
 
 STATIC = Path(__file__).with_name("static")
@@ -22,27 +22,44 @@ class ControlBox:
 
     def chat(self, text: str) -> dict[str, Any]:
         started = perf_counter()
+        self._model.reset()
         response = self._model.plan(text)
         calls: list[dict[str, Any]] = []
         results: list[dict[str, Any]] = []
+        trace: list[dict[str, Any]] = []
+        feedback_steps = 0
         first_decode_tps = response.get("decode_tps")
-        for _ in range(3):
+        for step in range(3):
             step_calls = response.get("function_calls") or []
+            trace.append(
+                {
+                    "phase": "Input" if step == 0 else "Tool-result feedback",
+                    "reasoning": response.get("reasoning"),
+                    "has_calls": bool(step_calls),
+                }
+            )
             if not step_calls:
                 if not calls:
                     error = constraint_error(response)
                     if error is not None:
                         results.append(error)
                 break
-            step_results = [execute(call) for call in step_calls]
+            step_results = [input_constraint_error(call, text) or execute(call) for call in step_calls]
             calls.extend(step_calls)
             results.extend(step_results)
             response = self._model.feed_results(step_results)
+            feedback_steps += 1
         return {
             "model": response,
             "calls": calls,
             "results": results,
             "stats": {"elapsed_seconds": perf_counter() - started, "decode_tps": first_decode_tps},
+            "trace": trace,
+            "context": {
+                "declared_tool_schemas": len(tool_schemas()),
+                "retrieval_limit": 5,
+                "feedback_steps": feedback_steps,
+            },
         }
 
     def reset(self) -> dict[str, bool]:

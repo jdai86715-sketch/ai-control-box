@@ -11,7 +11,10 @@ ROOM_NAMES = {
 
 
 def room_label(room: str) -> str:
-    return ROOM_NAMES.get(room.lower(), room)
+    key = room.lower()
+    if key not in ROOM_NAMES:
+        raise ValueError("room must be one of bedroom, living room, kitchen")
+    return ROOM_NAMES[key]
 
 
 def set_light(room: str, brightness: int = 100) -> ToolResult:

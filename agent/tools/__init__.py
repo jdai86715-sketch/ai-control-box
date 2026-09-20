@@ -65,6 +65,10 @@ TOOL_TRIGGERS = {
 for _schema in TOOL_SCHEMAS:
     _schema["triggers"] = TOOL_TRIGGERS[_schema["name"]]
 
+PARAMETER_ALIASES = {
+    "set_fan": {"level": ("level", "speed")},
+}
+
 def tool_schemas(names: list[str] | None = None) -> list[dict[str, Any]]:
     if names is None:
         return TOOL_SCHEMAS
@@ -101,4 +105,28 @@ def constraint_error(response: dict[str, Any]) -> dict[str, Any] | None:
             if (minimum is not None and value < minimum) or (maximum is not None and value > maximum):
                 limits = f"between {minimum} and {maximum}" if minimum is not None and maximum is not None else f"at least {minimum}" if minimum is not None else f"at most {maximum}"
                 return ToolResult(False, "tool.error", {"name": schema["name"], "parameter": parameter, "value": value}, f"{schema['name']}: {parameter} must be {limits}.").as_dict()
+    return None
+
+
+def input_constraint_error(call: dict[str, Any], text: str) -> dict[str, Any] | None:
+    """Reject an out-of-range number in the request before model defaults can hide it."""
+    name = str(call.get("name", ""))
+    schema = next((item for item in TOOL_SCHEMAS if item["name"] == name), None)
+    if schema is None:
+        return None
+    aliases_by_parameter = PARAMETER_ALIASES.get(name, {})
+    for parameter, definition in schema["parameters"].get("properties", {}).items():
+        minimum = definition.get("minimum")
+        maximum = definition.get("maximum")
+        if minimum is None and maximum is None:
+            continue
+        aliases = aliases_by_parameter.get(parameter, (parameter,))
+        terms = "|".join(re.escape(alias) for alias in aliases)
+        match = re.search(rf"\b(?:{terms})\s*(?:=|:)?\s*(-?\d+(?:\.\d+)?)", text, re.I)
+        if match is None:
+            continue
+        value = float(match.group(1))
+        if (minimum is not None and value < minimum) or (maximum is not None and value > maximum):
+            limits = f"between {minimum} and {maximum}" if minimum is not None and maximum is not None else f"at least {minimum}" if minimum is not None else f"at most {maximum}"
+            return ToolResult(False, "tool.error", {"name": name, "parameter": parameter, "value": value}, f"{name}: {parameter} must be {limits}.").as_dict()
     return None
