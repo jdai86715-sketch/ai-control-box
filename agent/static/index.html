@@ -29,6 +29,12 @@
           <label class="field-label">经度<input id="longitude" inputmode="decimal"></label>
         </div>
       </section>
+      <section class="location-panel" aria-label="模型">
+        <div class="tools-heading">模型</div>
+        <label class="field-label">当前模型<select id="active-model"><option value="needle">Needle</option><option value="qwen">Qwen via llama.cpp</option></select></label>
+        <label class="field-label">llama-server<input id="llama-server-url" autocomplete="off"></label>
+        <label class="field-label">embedding server<input id="embedding-server-url" autocomplete="off"></label>
+      </section>
       <section class="tools-panel" aria-label="工具">
         <div class="tools-heading">工具</div>
         <div id="settings-tools" class="settings-tools"></div>

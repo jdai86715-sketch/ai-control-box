@@ -201,12 +201,15 @@ const pluginFolder = document.getElementById('plugin-folder');
 const pluginMessage = document.getElementById('plugin-message');
 let toolsTimer;
 document.getElementById('settings').addEventListener('click', async () => {
-  const [response, toolsResponse] = await Promise.all([fetch('/api/settings'), fetch('/api/tools')]);
-  const [settings, tools] = await Promise.all([response.json(), toolsResponse.json()]);
+  const [response, toolsResponse, modelResponse] = await Promise.all([fetch('/api/settings'), fetch('/api/tools'), fetch('/api/model-settings')]);
+  const [settings, tools, model] = await Promise.all([response.json(), toolsResponse.json(), modelResponse.json()]);
   const location = settings.location;
   document.getElementById('city').value = location.city;
   document.getElementById('latitude').value = location.latitude;
   document.getElementById('longitude').value = location.longitude;
+  document.getElementById('active-model').value = model.active_model;
+  document.getElementById('llama-server-url').value = model.qwen.llama_server_url;
+  document.getElementById('embedding-server-url').value = model.qwen.embedding_server_url;
   renderSettingsTools(tools);
   dialog.showModal();
   clearInterval(toolsTimer);
@@ -223,7 +226,9 @@ settingsForm.addEventListener('submit', async event => {
     longitude: document.getElementById('longitude').value,
   };
   const response = await fetch('/api/settings', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({location})});
-  if (!response.ok) return;
+  const model = {active_model: document.getElementById('active-model').value, qwen: {llama_server_url: document.getElementById('llama-server-url').value, embedding_server_url: document.getElementById('embedding-server-url').value}};
+  const modelResponse = await fetch('/api/model-settings', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(model)});
+  if (!response.ok || !modelResponse.ok) return;
   dialog.close();
 });
 

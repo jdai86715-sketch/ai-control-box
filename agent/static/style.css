@@ -30,8 +30,8 @@ pre { width: fit-content; max-width: 100%; margin: 0; padding: 0; overflow: auto
 .tool-table th, .tool-table td { padding: 9px 7px; border-bottom: 1px solid #202020; vertical-align: top; }
 .tool-table th { color: #6f6f6f; font-weight: 500; } .tool-table td:first-child { width: 35%; color: #e3e3e3; font-family: Consolas, monospace; }
 #chat { display: flex; gap: 7px; padding: 14px max(20px, calc((100vw - 680px) / 2)) 22px; }
-#text, #settings-form input { min-width: 0; flex: 1; border: 1px solid #303030; border-radius: 9px; outline: none; padding: 12px 14px; background: #090909; color: #eee; font: 14px "Microsoft YaHei UI", system-ui, sans-serif; }
-#text:focus, #settings-form input:focus { border-color: #666; }
+#text, #settings-form input, #settings-form select { min-width: 0; flex: 1; border: 1px solid #303030; border-radius: 9px; outline: none; padding: 12px 14px; background: #090909; color: #eee; font: 14px "Microsoft YaHei UI", system-ui, sans-serif; }
+#text:focus, #settings-form input:focus, #settings-form select:focus { border-color: #666; }
 dialog { width: min(360px, calc(100vw - 40px)); padding: 0; overflow: hidden; border: 1px solid #303030; border-radius: 12px; background: #0a0a0a; color: #eee; } dialog::backdrop { background: rgba(0, 0, 0, .72); }
 #settings-form { display: grid; gap: 9px; padding: 44px 18px 18px; position: relative; } #settings-form input { width: 100%; }
 .location-panel { display: grid; gap: 8px; }

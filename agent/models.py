@@ -3,6 +3,9 @@ from pathlib import Path
 from typing import Any
 
 from .needle import NeedleModel
+from .qwen import QwenModel
+from .tool_index import ToolVectorIndex
+from .config import get_model_settings
 from .tools import get_registry, tool_schemas
 
 
@@ -13,16 +16,19 @@ class ModelRouter:
     """Keeps the web and tool layers independent from the selected model."""
 
     def __init__(self) -> None:
-        self._model: NeedleModel | None = None
+        self._model: Any | None = None
         self._tool_version = ""
+        self._active_model = ""
         self._ensure_current()
 
     def _ensure_current(self) -> None:
         registry = get_registry()
         registry.refresh()
-        if self._model is None or self._tool_version != registry.version:
-            self._model = NeedleModel(tool_schemas(), str(TOOL_INDEX_PATH))
+        settings = get_model_settings()
+        if self._model is None or self._tool_version != registry.version or self._active_model != settings["active_model"]:
+            self._model = NeedleModel(tool_schemas(), str(TOOL_INDEX_PATH)) if settings["active_model"] == "needle" else QwenModel(settings["qwen"]["llama_server_url"], ToolVectorIndex(settings["qwen"]["embedding_server_url"], tool_schemas()))
             self._tool_version = registry.version
+            self._active_model = settings["active_model"]
 
     def plan(self, text: str) -> dict[str, Any]:
         self._ensure_current()
