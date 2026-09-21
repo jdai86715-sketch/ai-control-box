@@ -42,6 +42,8 @@ models/catalog.json         # Hugging Face 模型 id、文件、大小、SHA-256
 - `模型` 只列出模型名称与安装状态。例如 `qwen2.5-1.5b-instruct-q4_k_m [未安装]`；不展示模型大小、路径、端口或技术提示。
 - 在模型页点击未安装模型，自动切换至本弹窗的 `下载` 标签。
 - `下载` 只列出可下载模型和 `下载` 控件；用户点击后从 Hugging Face 拉取，展示进度。暂停或中断后应可续传。
+- 用户在下载页点击 Qwen 模型时，如对应平台的 llama-server 运行时尚未准备，先弹出一次确认：`使用 Qwen 需要 llama-server，是否下载依赖？`。确认后先准备运行时，再自动继续下载该模型；取消则不下载任何内容。
+- llama-server 是 Qwen 的实现依赖，不作为普通模型条目显示；只使用 Needle 的用户不会看到或下载它。
 - 已安装模型可在模型页选择为当前模型；选择 Qwen 后，首次指令才准备 llama-server 并启动它。
 - llama-server URL、embedding URL 等实现细节不出现在普通设置页。
 

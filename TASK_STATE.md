@@ -11,6 +11,7 @@
 - WebUI 只有对话输入、调用/结果输出与新建对话；不使用 Tk。
 - 首个阶段先在 Windows 跑通 Python 模拟动作与 WebUI 反馈。
 - Qwen 第一阶段只解决 llama-server 本地运行时、Hugging Face 一键模型下载、模型选择与聊天服务启动；不在这一阶段加入 embedding、向量索引或知识库。
+- 用户在下载页下载 Qwen 时，如 llama-server 尚未安装，先由弹窗请求一次依赖下载确认；确认后自动按顺序安装运行时并下载所选模型。
 
 ## 已排除项
 
