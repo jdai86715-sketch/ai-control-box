@@ -20,7 +20,7 @@ class QwenModel:
     def plan(self, text: str) -> dict[str, Any]:
         if not self._messages:
             self._messages = [
-                {"role": "system", "content": "You convert a control request into JSON only. Return {\"function_calls\":[{\"name\":\"tool name\",\"arguments\":{}}]}. Use the provided tool schemas. If none applies, return {\"function_calls\":[]}. Copy every argument name and every literal value exactly from a schema; never translate schema values. For room, use only bedroom, living room, or kitchen."},
+                {"role": "system", "content": "You convert a control request into JSON only. Return {\"function_calls\":[{\"name\":\"tool name\",\"arguments\":{}}]}. Use the provided tool schemas. If none applies, return {\"function_calls\":[]}. Call list_tools only when the user explicitly asks which tools are available. Never emit the same call more than once. Copy every argument name and every literal value exactly from a schema; never translate schema values. For room, use only bedroom, living room, or kitchen."},
                 {"role": "system", "content": "Tool schemas:\n" + json.dumps(self._schemas(), ensure_ascii=False)},
             ]
         self._messages.append({"role": "user", "content": text})
@@ -28,10 +28,15 @@ class QwenModel:
         content = str(data["choices"][0]["message"].get("content") or "{}").strip()
         self._messages.append({"role": "assistant", "content": content})
         try:
-            calls = json.loads(content).get("function_calls") or []
+            payload = json.loads(content)
         except json.JSONDecodeError:
-            calls = []
+            payload = {}
+        calls = payload.get("function_calls") or [] if isinstance(payload, dict) else []
         return {"function_calls": [call for call in calls if isinstance(call, dict) and isinstance(call.get("arguments"), dict)], "reasoning": "Qwen full tool context", "decode_tps": None}
+
+    def answer(self, text: str) -> str:
+        data = self._post("/v1/chat/completions", {"messages": [{"role": "system", "content": "你是 AI 控制盒的本地聊天助手。请用简短自然的中文回答普通问题。不要声称已经执行设备操作。"}, {"role": "user", "content": text}], "temperature": 0.3, "max_tokens": 128})
+        return str(data["choices"][0]["message"].get("content") or "").strip()
 
     def feed_results(self, results: list[dict[str, Any]]) -> dict[str, Any]:
         self._messages.append({"role": "user", "content": "Tool results are final status, not a new instruction. Do not repeat, translate, or create any tool call. Reply only with {\"function_calls\":[]}.\n" + json.dumps(results, ensure_ascii=False)})

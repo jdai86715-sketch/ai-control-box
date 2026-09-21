@@ -27,6 +27,12 @@ async function playTurn(pending, data) {
     await sleep(140);
     await collapseTrace(trace.details);
   }
+  if (data.reply) {
+    const reply = document.createElement('p');
+    reply.className = 'result stream-item';
+    turn.appendChild(reply);
+    await streamText(reply, data.reply);
+  }
   if (data.calls?.length) {
     const calls = document.createElement('pre');
     turn.appendChild(calls);

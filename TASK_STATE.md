@@ -39,6 +39,7 @@
 - Qwen 分支当前将模型设为 `qwen` 后，会在 WebUI 初始化时请求未启动的 `127.0.0.1:8080/embedding`，触发 WinError 10061 并退出；本机已有 1.5B 与 3B GGUF，但项目没有 llama-server 运行时、启动管理或 embedding 模型。
 - Qwen 第一阶段已改为不在初始化时连接模型：设置弹窗具备“常规 / 下载 / 模型”标签，模型页只显示名称与安装状态；下载页可在确认后准备 llama-server 依赖并下载 Hugging Face GGUF。当前第一版移除 embedding/tool index，完整动态 schema 直接注入 Qwen。
 - 已实测下载并解压官方 Windows CPU llama-server；1.5B GGUF 可由该服务加载，并将“把卧室灯调到百分之二十”返回为 `set_light(bedroom, 20)` 后成功执行。工具结果会回喂 Qwen 作为最终状态，但当前阶段固定结束本轮，避免 1.5B 把中文设备反馈误作新命令重复调用。Qwen 不可用时由请求错误返回，不再使 WebUI 初始化退出。
+- Qwen 采用两段式输出：先以严格 JSON 规划工具；没有工具调用时，再使用独立的短中文聊天请求填充 WebUI 的 `reply`。同一规划步骤内完全相同的 `name + arguments` 会去重，已验证“列出可用工具”只执行一次。
 
 ## 下一步
 

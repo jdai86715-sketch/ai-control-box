@@ -26,13 +26,14 @@ class ControlBox:
         started = perf_counter()
         self._model.reset()
         response = self._model.plan(text)
+        reply = str(response.get("reply") or "")
         calls: list[dict[str, Any]] = []
         results: list[dict[str, Any]] = []
         trace: list[dict[str, Any]] = []
         feedback_steps = 0
         first_decode_tps = response.get("decode_tps")
         for step in range(3):
-            step_calls = response.get("function_calls") or []
+            step_calls = _unique_calls(response.get("function_calls") or [])
             trace.append(
                 {
                     "phase": "Input" if step == 0 else "Tool-result feedback",
@@ -45,6 +46,8 @@ class ControlBox:
                     error = constraint_error(response)
                     if error is not None:
                         results.append(error)
+                    elif get_model_settings()["active_model"] == "qwen":
+                        reply = self._model.answer(text)
                 break
             step_results = [input_constraint_error(call, text) or execute(call) for call in step_calls]
             calls.extend(step_calls)
@@ -53,6 +56,7 @@ class ControlBox:
             feedback_steps += 1
         return {
             "model": response,
+            "reply": reply,
             "calls": calls,
             "results": results,
             "stats": {"elapsed_seconds": perf_counter() - started, "decode_tps": first_decode_tps},
@@ -95,6 +99,20 @@ class ControlBox:
 
     def close(self) -> None:
         self._runtime.stop()
+
+
+def _unique_calls(calls: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """A small model may repeat one exact call; execute it once per planning step."""
+    unique: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for call in calls:
+        if not isinstance(call, dict):
+            continue
+        key = json.dumps({"name": call.get("name"), "arguments": call.get("arguments")}, ensure_ascii=False, sort_keys=True)
+        if key not in seen:
+            seen.add(key)
+            unique.append(call)
+    return unique
 
 
 def handler_for(box: ControlBox) -> type[BaseHTTPRequestHandler]:
