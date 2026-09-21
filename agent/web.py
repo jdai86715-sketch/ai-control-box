@@ -26,17 +26,8 @@ class ControlBox:
         started = perf_counter()
         self._model.reset()
         model_kind = get_model_settings()["active_model"]
-        route = "control"
-        if model_kind == "qwen":
-            route = self._model.route(text)
-        response = (
-            {"function_calls": [], "reasoning": "Qwen chat route", "decode_tps": None}
-            if route == "chat"
-            else self._model.plan(text)
-        )
+        response = self._model.plan(text)
         reply = str(response.get("reply") or "")
-        if route == "chat":
-            reply = self._model.answer(text)
         calls: list[dict[str, Any]] = []
         results: list[dict[str, Any]] = []
         trace: list[dict[str, Any]] = []
@@ -56,13 +47,12 @@ class ControlBox:
                     error = constraint_error(response)
                     if error is not None:
                         results.append(error)
-                    elif model_kind == "qwen" and route == "control":
-                        reply = self._model.answer(text)
                 break
             step_results = [input_constraint_error(call, text) or execute(call) for call in step_calls]
             calls.extend(step_calls)
             results.extend(step_results)
             response = self._model.feed_results(step_results)
+            reply = str(response.get("reply") or reply)
             feedback_steps += 1
         return {
             "model": response,

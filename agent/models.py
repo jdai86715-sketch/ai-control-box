@@ -36,20 +36,10 @@ class ModelRouter:
         assert self._model is not None
         return self._model.plan(text)
 
-    def route(self, text: str) -> str:
-        self._ensure_current()
-        assert self._model is not None
-        return self._model.route(text)
-
     def feed_results(self, results: list[dict[str, Any]]) -> dict[str, Any]:
         self._ensure_current()
         assert self._model is not None
         return self._model.feed_results(results)
-
-    def answer(self, text: str) -> str:
-        self._ensure_current()
-        assert self._model is not None
-        return self._model.answer(text)
 
     def reset(self) -> None:
         self._ensure_current()
