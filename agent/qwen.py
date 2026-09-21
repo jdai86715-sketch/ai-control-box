@@ -67,7 +67,7 @@ class QwenModel:
         return "control" if mode == "control" else "chat"
 
     def answer(self, text: str) -> str:
-        data = self._post("/v1/chat/completions", {"messages": [{"role": "system", "content": "你是 AI 控制盒的本地聊天助手。请用简短自然的中文回答普通问题。不要声称已经执行设备操作。"}, {"role": "user", "content": text}], "temperature": 0.3, "max_tokens": 128})
+        data = self._post("/v1/chat/completions", {"messages": [{"role": "system", "content": "你当前运行在 AI 控制盒环境中。每条输入都是独立的单轮对话，不能读取之前的消息。请用简短自然的中文回答普通问题。用户问“你是谁”时，只说明当前处于 AI 控制盒环境及单轮对话边界，不要回答人格、助手或模型身份。不要声称已经执行设备操作，也不要编造当前环境或工具状态。"}, {"role": "user", "content": text}], "temperature": 0.3, "max_tokens": 128})
         return str(data["choices"][0]["message"].get("content") or "").strip()
 
     def feed_results(self, results: list[dict[str, Any]]) -> dict[str, Any]:
