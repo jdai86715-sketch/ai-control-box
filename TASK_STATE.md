@@ -39,9 +39,8 @@
 - Qwen 分支当前将模型设为 `qwen` 后，会在 WebUI 初始化时请求未启动的 `127.0.0.1:8080/embedding`，触发 WinError 10061 并退出；本机已有 1.5B 与 3B GGUF，但项目没有 llama-server 运行时、启动管理或 embedding 模型。
 - Qwen 第一阶段已改为不在初始化时连接模型：设置弹窗具备“常规 / 下载 / 模型”标签，模型页只显示名称与安装状态；下载页可在确认后准备 llama-server 依赖并下载 Hugging Face GGUF。当前第一版移除 embedding/tool index，完整动态 schema 直接注入 Qwen。
 - 已实测下载并解压官方 Windows CPU llama-server；1.5B GGUF 可由该服务加载，并将“把卧室灯调到百分之二十”返回为 `set_light(bedroom, 20)` 后成功执行。工具结果会回喂 Qwen 作为最终状态，但当前阶段固定结束本轮，避免 1.5B 把中文设备反馈误作新命令重复调用。Qwen 不可用时由请求错误返回，不再使 WebUI 初始化退出。
-- Qwen 采用两段式输出：先以严格 JSON 规划工具；没有工具调用时，再使用独立的短中文聊天请求填充 WebUI 的 `reply`。同一规划步骤内完全相同的 `name + arguments` 会去重，已验证“列出可用工具”只执行一次。
-- Qwen 现增加不注入工具表的短意图路由：闲聊、能力询问、算术等先走普通中文对话；只有真实读写/控制请求或明确列工具时，才注入完整动态 schema 进行工具规划。路由不参与工具授权，动态注册表仍是唯一执行来源。
-- Qwen 的普通对话提示只声明“AI 控制盒环境”和“每条输入独立单轮”；不再给模型设定助手身份，也不向该路径注入工具 schema。
+- Qwen 使用 llama-server 原生 OpenAI `tools` 协议：每次请求从动态 ToolRegistry 即时生成全部函数 schema，Qwen 自行决定直接回复或返回 `tool_calls`；执行结果按原 `tool_call_id` 以 `role=tool` 回喂同一上下文。插件变动会在下一条消息自动改变注入的 tools；动态注册表仍是唯一执行来源。
+- 已真实验证原生通道：身份与算术问题直接回复；时间、天气、灯光、工具列表均返回正确原生调用，并在回喂执行结果后给出自然中文回复。模拟家居的 room 参数已在 manifest 中声明英文 enum，避免 Qwen 将“卧室”等中文名称直接传给 Python handler。
 
 ## 下一步
 

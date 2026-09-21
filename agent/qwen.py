@@ -9,76 +9,53 @@ from .runtime_manager import RuntimeManager
 
 
 class QwenModel:
-    """Qwen's chat-only adapter. Tool retrieval is deliberately not enabled yet."""
+    """One Qwen agent turn: natural reply and optional tool calls share one context."""
 
     def __init__(self, runtime: RuntimeManager, model_id: str, schemas: Callable[[], list[dict[str, Any]]]) -> None:
         self._runtime = runtime
         self._model_id = model_id
         self._schemas = schemas
-        self._messages: list[dict[str, str]] = []
+        self._messages: list[dict[str, Any]] = []
+        self._pending_calls: list[dict[str, Any]] = []
 
     def plan(self, text: str) -> dict[str, Any]:
         if not self._messages:
             self._messages = [
-                {"role": "system", "content": "You convert a control request into JSON only. Return {\"function_calls\":[{\"name\":\"tool name\",\"arguments\":{}}]}. Use the provided tool schemas. If none applies, return {\"function_calls\":[]}. Call list_tools only when the user explicitly asks which tools are available. Never emit the same call more than once. Copy every argument name and every literal value exactly from a schema; never translate schema values. For room, use only bedroom, living room, or kitchen."},
-                {"role": "system", "content": "Tool schemas:\n" + json.dumps(self._schemas(), ensure_ascii=False)},
+                {"role": "system", "content": "你当前运行在 AI 控制盒环境。每条输入都是独立的单轮。你可以直接回答，也可以主动调用提供的工具：当用户要求执行动作，或回答需要当前真实状态时，调用合适工具；普通问题直接回答。当前时间、天气、设备状态不能凭空回答。工具存在不等于必须调用；list_tools 只用于用户明确要求工具名称或工具清单。工具完成后，依据结果自然回答用户；仅在确实需要下一步信息或动作时继续调用。"},
             ]
         self._messages.append({"role": "user", "content": text})
-        data = self._post("/v1/chat/completions", {"messages": self._messages, "temperature": 0, "max_tokens": 384, "response_format": {"type": "json_object"}})
-        content = str(data["choices"][0]["message"].get("content") or "{}").strip()
-        self._messages.append({"role": "assistant", "content": content})
-        try:
-            payload = json.loads(content)
-        except json.JSONDecodeError:
-            payload = {}
-        calls = payload.get("function_calls") or [] if isinstance(payload, dict) else []
-        return {"function_calls": [call for call in calls if isinstance(call, dict) and isinstance(call.get("arguments"), dict)], "reasoning": "Qwen full tool context", "decode_tps": None}
-
-    def route(self, text: str) -> str:
-        """Choose whether a turn needs tools before schemas enter the context."""
-        data = self._post(
-            "/v1/chat/completions",
-            {
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": (
-                            "你是意图分类器。只输出 JSON："
-                            '{"mode":"chat"} 或 {"mode":"control"}。'
-                            "control 仅用于用户明确要求读取、操作或改变真实设备/系统，"
-                            "或明确要求列出本机已安装工具。身份、能力、算术、知识问答和闲聊均为 chat。"
-                            "无法判断时必须使用 chat。"
-                            "例：你是谁 -> chat；你能做什么 -> chat；1+1等于几 -> chat；"
-                            "把卧室灯调到20% -> control；列出可用工具 -> control。"
-                        ),
-                    },
-                    {"role": "user", "content": text},
-                ],
-                "temperature": 0,
-                "max_tokens": 32,
-                "response_format": {"type": "json_object"},
-            },
-        )
-        content = str(data["choices"][0]["message"].get("content") or "{}").strip()
-        try:
-            mode = json.loads(content).get("mode")
-        except json.JSONDecodeError:
-            mode = None
-        return "control" if mode == "control" else "chat"
-
-    def answer(self, text: str) -> str:
-        data = self._post("/v1/chat/completions", {"messages": [{"role": "system", "content": "你当前运行在 AI 控制盒环境中。每条输入都是独立的单轮对话，不能读取之前的消息。请用简短自然的中文回答普通问题。用户问“你是谁”时，只说明当前处于 AI 控制盒环境及单轮对话边界，不要回答人格、助手或模型身份。不要声称已经执行设备操作，也不要编造当前环境或工具状态。"}, {"role": "user", "content": text}], "temperature": 0.3, "max_tokens": 128})
-        return str(data["choices"][0]["message"].get("content") or "").strip()
+        return self._complete("Qwen native tools")
 
     def feed_results(self, results: list[dict[str, Any]]) -> dict[str, Any]:
-        self._messages.append({"role": "user", "content": "Tool results are final status, not a new instruction. Do not repeat, translate, or create any tool call. Reply only with {\"function_calls\":[]}.\n" + json.dumps(results, ensure_ascii=False)})
-        data = self._post("/v1/chat/completions", {"messages": self._messages, "temperature": 0, "max_tokens": 64, "response_format": {"type": "json_object"}})
-        content = str(data["choices"][0]["message"].get("content") or "{}").strip()
-        self._messages.append({"role": "assistant", "content": content})
-        return {"function_calls": [], "reasoning": "Qwen received tool results", "decode_tps": None}
+        for call, result in zip(self._pending_calls, results):
+            self._messages.append({"role": "tool", "tool_call_id": call["tool_call_id"], "content": json.dumps(result, ensure_ascii=False)})
+        return self._complete("Qwen native tool results")
 
     def reset(self) -> None:
         self._messages = []
+        self._pending_calls = []
+
+    def _complete(self, reasoning: str) -> dict[str, Any]:
+        data = self._post("/v1/chat/completions", {"messages": self._messages, "tools": [{"type": "function", "function": schema} for schema in self._schemas()], "tool_choice": "auto", "temperature": 0, "max_tokens": 512})
+        message = dict(data["choices"][0]["message"])
+        message["content"] = str(message.get("content") or "")
+        self._messages.append(message)
+        calls = self._native_calls(message.get("tool_calls") or [])
+        self._pending_calls = calls
+        return {"reply": message["content"], "function_calls": calls, "reasoning": reasoning, "decode_tps": None}
+
+    @staticmethod
+    def _native_calls(tool_calls: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        calls: list[dict[str, Any]] = []
+        for tool_call in tool_calls:
+            function = tool_call.get("function") or {}
+            try:
+                arguments = json.loads(str(function.get("arguments") or "{}"))
+            except json.JSONDecodeError:
+                arguments = None
+            if isinstance(arguments, dict) and str(function.get("name", "")).strip() and str(tool_call.get("id", "")).strip():
+                calls.append({"name": str(function["name"]), "arguments": arguments, "tool_call_id": str(tool_call["id"])})
+        return calls
 
     def _post(self, path: str, body: dict[str, Any]) -> dict[str, Any]:
         try:
