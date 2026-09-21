@@ -3,3 +3,8 @@ __pycache__/
 *.py[cod]
 models/*.cact
 models/*.idx
+models/*.gguf
+models/*.part
+runtime/bin/
+runtime/*.zip
+runtime/*.tar.gz

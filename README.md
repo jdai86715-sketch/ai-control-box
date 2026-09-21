@@ -114,6 +114,14 @@ C:\Users\<用户名>\.cache\cactus-needle\v3\3.0.1\needle3.cact
 
 `.venv/`、缓存和 `models/*.cact` 都被 Git 忽略，不会被提交到仓库。
 
+## Qwen 本地模型
+
+设置弹窗分为“常规 / 下载 / 模型”。只使用 Needle 时，不会下载 Qwen 或 llama-server。
+
+在“模型”中点击未安装的 Qwen 项会切到“下载”；点击下载时，如果本机尚未准备 llama-server，会先确认下载该依赖，随后自动继续下载模型。Qwen 模型从 Hugging Face 下载到 `models/`，运行时从 llama.cpp 官方发行包下载到 `runtime/bin/`；两者都不会提交 Git。
+
+首次选择已安装的 Qwen 并发送指令时，应用会在本机启动 llama-server。当前第一版会把动态工具注册表的完整 schema 注入 Qwen 上下文；向量检索尚未接入。
+
 ## 增加一个工具
 
 1. 新建 `agent/tools/plugins/<插件 id>/manifest.json` 和 `tool.py`。

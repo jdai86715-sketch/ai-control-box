@@ -1,0 +1,22 @@
+{
+  "models": [
+    {
+      "id": "qwen2.5-1.5b-instruct-q4_k_m",
+      "name": "qwen2.5-1.5b-instruct-q4_k_m",
+      "filename": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+      "url": "https://huggingface.co/bartowski/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf?download=true",
+      "sha256": "1adf0b11065d8ad2e8123ea110d1ec956dab4ab038eab665614adba04b6c3370",
+      "size": 986048768,
+      "context_size": 4096
+    },
+    {
+      "id": "qwen2.5-3b-instruct-q4_k_m",
+      "name": "qwen2.5-3b-instruct-q4_k_m",
+      "filename": "qwen2.5-3b-instruct-q4_k_m.gguf",
+      "url": "https://huggingface.co/bartowski/Qwen2.5-3B-Instruct-GGUF/resolve/main/Qwen2.5-3B-Instruct-Q4_K_M.gguf?download=true",
+      "sha256": "9c9f56a391a3abbd5b89d0245bf6106081bcc3173119d4229235dd9d23253f94",
+      "size": 1929903264,
+      "context_size": 4096
+    }
+  ]
+}

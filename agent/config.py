@@ -33,8 +33,11 @@ def get_model_settings() -> dict[str, Any]:
 
 def save_model_settings(data: dict[str, Any]) -> dict[str, Any]:
     active = data.get("active_model")
-    if active not in {"needle", "qwen"}: raise ValueError("模型选择不正确。")
-    current = get_model_settings(); current["active_model"] = active
-    if "qwen" in data: current["qwen"].update(data["qwen"])
+    if active not in {"needle", "qwen"}:
+        raise ValueError("模型选择不正确。")
+    current = get_model_settings()
+    current["active_model"] = active
+    if "qwen" in data and "model_id" in data["qwen"]:
+        current["qwen"]["model_id"] = str(data["qwen"]["model_id"])
     MODEL_SETTINGS_PATH.write_text(json.dumps(current, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
     return current

@@ -89,7 +89,9 @@ function buildTrace(data) {
   if (context) {
     const schemas = document.createElement('p');
     schemas.className = 'trace-line';
-    schemas.dataset.value = `Context: ${context.declared_tool_schemas} tool schemas declared · Needle retrieves up to ${context.retrieval_limit} candidates`;
+    schemas.dataset.value = context.model_kind === 'qwen'
+      ? `Context: ${context.declared_tool_schemas} tool schemas injected into Qwen`
+      : `Context: ${context.declared_tool_schemas} tool schemas declared · Needle retrieves up to ${context.retrieval_limit} candidates`;
     content.appendChild(schemas);
     lines.push(schemas);
     const feedback = document.createElement('p');
@@ -199,25 +201,38 @@ const settingsForm = document.getElementById('settings-form');
 const settingsTools = document.getElementById('settings-tools');
 const pluginFolder = document.getElementById('plugin-folder');
 const pluginMessage = document.getElementById('plugin-message');
+const modelList = document.getElementById('model-list');
+const modelDownloads = document.getElementById('model-downloads');
 let toolsTimer;
+let modelsTimer;
+let modelState;
 document.getElementById('settings').addEventListener('click', async () => {
-  const [response, toolsResponse, modelResponse] = await Promise.all([fetch('/api/settings'), fetch('/api/tools'), fetch('/api/model-settings')]);
-  const [settings, tools, model] = await Promise.all([response.json(), toolsResponse.json(), modelResponse.json()]);
+  const [response, toolsResponse, modelsResponse] = await Promise.all([fetch('/api/settings'), fetch('/api/tools'), fetch('/api/models')]);
+  const [settings, tools, models] = await Promise.all([response.json(), toolsResponse.json(), modelsResponse.json()]);
   const location = settings.location;
   document.getElementById('city').value = location.city;
   document.getElementById('latitude').value = location.latitude;
   document.getElementById('longitude').value = location.longitude;
-  document.getElementById('active-model').value = model.active_model;
-  document.getElementById('llama-server-url').value = model.qwen.llama_server_url;
-  document.getElementById('embedding-server-url').value = model.qwen.embedding_server_url;
+  modelState = models;
+  renderModels();
   renderSettingsTools(tools);
+  showSettingsTab('general');
   dialog.showModal();
   clearInterval(toolsTimer);
+  clearInterval(modelsTimer);
   toolsTimer = setInterval(loadSettingsTools, 1500);
+  modelsTimer = setInterval(loadModels, 800);
 });
 
 document.getElementById('close-settings').addEventListener('click', () => dialog.close());
-dialog.addEventListener('close', () => clearInterval(toolsTimer));
+dialog.addEventListener('close', () => { clearInterval(toolsTimer); clearInterval(modelsTimer); });
+for (const tab of document.querySelectorAll('.settings-tab')) tab.addEventListener('click', () => showSettingsTab(tab.dataset.tab));
+
+function showSettingsTab(name) {
+  for (const tab of document.querySelectorAll('.settings-tab')) tab.classList.toggle('is-active', tab.dataset.tab === name);
+  for (const page of document.querySelectorAll('.settings-page')) page.classList.toggle('is-active', page.dataset.page === name);
+}
+
 settingsForm.addEventListener('submit', async event => {
   event.preventDefault();
   const location = {
@@ -226,11 +241,75 @@ settingsForm.addEventListener('submit', async event => {
     longitude: document.getElementById('longitude').value,
   };
   const response = await fetch('/api/settings', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({location})});
-  const model = {active_model: document.getElementById('active-model').value, qwen: {llama_server_url: document.getElementById('llama-server-url').value, embedding_server_url: document.getElementById('embedding-server-url').value}};
-  const modelResponse = await fetch('/api/model-settings', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(model)});
-  if (!response.ok || !modelResponse.ok) return;
+  if (!response.ok) return;
   dialog.close();
 });
+
+async function loadModels() {
+  if (!dialog.open) return;
+  const response = await fetch('/api/models');
+  if (!response.ok) return;
+  modelState = await response.json();
+  renderModels();
+}
+
+function renderModels() {
+  if (!modelState) return;
+  modelList.replaceChildren();
+  modelDownloads.replaceChildren();
+  const needle = modelRow('Needle', modelState.active_model === 'needle' ? '已启用' : '');
+  needle.addEventListener('click', () => selectModel('needle'));
+  modelList.appendChild(needle);
+  for (const model of modelState.models || []) {
+    const state = model.installed ? (modelState.active_model === 'qwen' && modelState.selected_id === model.id ? '已启用' : '已安装') : '未安装';
+    const row = modelRow(model.name, state, model.installed && modelState.active_model === 'qwen' && modelState.selected_id === model.id);
+    row.addEventListener('click', () => model.installed ? selectModel('qwen', model.id) : showSettingsTab('downloads'));
+    modelList.appendChild(row);
+
+    const download = document.createElement('div');
+    download.className = 'model-row';
+    download.append(document.createTextNode(model.name));
+    const action = document.createElement('button');
+    action.type = 'button';
+    action.className = 'download-action';
+    action.textContent = model.installed ? (modelState.runtime_ready ? '已安装' : '下载依赖') : model.downloading ? downloadLabel(modelState.download) : '下载';
+    action.disabled = (model.installed && modelState.runtime_ready) || model.downloading || modelState.download?.state === 'downloading';
+    action.addEventListener('click', () => downloadModel(model));
+    download.appendChild(action);
+    modelDownloads.appendChild(download);
+  }
+}
+
+function modelRow(name, state, selected = false) {
+  const row = document.createElement('button');
+  row.type = 'button';
+  row.className = `model-row${selected ? ' is-selected' : ''}`;
+  const label = document.createElement('span');
+  label.textContent = name;
+  const status = document.createElement('span');
+  status.className = 'model-state';
+  status.textContent = state;
+  row.append(label, status);
+  return row;
+}
+
+function downloadLabel(download) {
+  if (!download || !download.total) return '下载中';
+  return `${Math.min(100, Math.floor((download.received || 0) / download.total * 100))}%`;
+}
+
+async function selectModel(active_model, model_id) {
+  const body = {active_model, qwen: model_id ? {model_id} : {}};
+  const response = await fetch('/api/model-settings', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  if (response.ok) await loadModels();
+}
+
+async function downloadModel(model) {
+  const includeRuntime = !modelState.runtime_ready;
+  if (includeRuntime && !confirm('使用 Qwen 需要 llama-server，是否下载依赖？')) return;
+  const response = await fetch('/api/models/download', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id: model.id, include_runtime: includeRuntime})});
+  if (response.ok) await loadModels();
+}
 
 async function loadSettingsTools() {
   if (!dialog.open) return;

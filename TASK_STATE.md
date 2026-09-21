@@ -10,7 +10,7 @@
 - `main.py` 只负责启动；所有业务运行代码置于 `agent/`。
 - WebUI 只有对话输入、调用/结果输出与新建对话；不使用 Tk。
 - 首个阶段先在 Windows 跑通 Python 模拟动作与 WebUI 反馈。
-- Qwen 第一阶段只解决 llama-server 本地运行时、Hugging Face 一键模型下载、模型选择与聊天服务启动；不在这一阶段加入 embedding、向量索引或知识库。
+- Qwen 第一阶段只解决 llama-server 本地运行时、Hugging Face 一键模型下载、模型选择与聊天服务启动；第一版将完整动态工具 schema 注入 Qwen，不在这一阶段加入 embedding、向量索引或知识库。
 - 用户在下载页下载 Qwen 时，如 llama-server 尚未安装，先由弹窗请求一次依赖下载确认；确认后自动按顺序安装运行时并下载所选模型。
 
 ## 已排除项
@@ -37,7 +37,9 @@
 - 设置弹窗中的工具目录改为英文原工具名加一行简短中文描述，不显示插件前缀或句号；位置设置改为带标题的城市单行、纬度/经度并排，并处理工具区横向溢出。扫描器忽略只剩 Python 缓存的空插件目录；已验证当前目录为六个工具、零错误。
 - WebUI 已加入展示层假流式：消息发送后显示三点 loading；完整响应到达后依次快速播放 reasoning/context、工具调用 JSON、结果与统计，reasoning 播完后平滑自动折叠。未改动后端接口或真实耗时计算；已通过 JavaScript 语法与静态页面加载检查。
 - Qwen 分支当前将模型设为 `qwen` 后，会在 WebUI 初始化时请求未启动的 `127.0.0.1:8080/embedding`，触发 WinError 10061 并退出；本机已有 1.5B 与 3B GGUF，但项目没有 llama-server 运行时、启动管理或 embedding 模型。
+- Qwen 第一阶段已改为不在初始化时连接模型：设置弹窗具备“常规 / 下载 / 模型”标签，模型页只显示名称与安装状态；下载页可在确认后准备 llama-server 依赖并下载 Hugging Face GGUF。当前第一版移除 embedding/tool index，完整动态 schema 直接注入 Qwen。
+- 已实测下载并解压官方 Windows CPU llama-server；1.5B GGUF 可由该服务加载，并将“把卧室灯调到百分之二十”返回为 `set_light(bedroom, 20)` 后成功执行。工具结果会回喂 Qwen 作为最终状态，但当前阶段固定结束本轮，避免 1.5B 把中文设备反馈误作新命令重复调用。Qwen 不可用时由请求错误返回，不再使 WebUI 初始化退出。
 
 ## 下一步
 
-- 完成 Qwen 第一阶段：自动准备 llama-server 运行时、按需启动聊天服务、保留 WebUI 并展示启动错误；之后再验证最小中文 JSON 工具调用。
+- 验证设置页视觉与下载流程；随后测试 Qwen 中文 JSON 工具调用和工具结果回喂。

@@ -10,14 +10,14 @@
 - `requirements.txt` 继续只放 Python 依赖；不安装 `llama-cpp-python`。
 - 新增 `runtime/` 运行时目录及固定版本的运行时清单，按 Windows x64、Linux x64、Linux ARM64 选择预编译 `llama-server` 包。
 - 启动时检查本地二进制；缺失时下载、校验 SHA-256、解压完整发行包。
-- Qwen 被选择且收到首条请求时，按当前选中的 GGUF 启动聊天服务、等待健康检查，然后发出请求。
+- Qwen 被选择且收到首条请求时，按当前选中的 GGUF 启动聊天服务、等待健康检查，然后发出请求；第一版将完整动态工具 schema 注入 Qwen 上下文。
 - Qwen 不可用时，HTTP 接口返回中文错误；WebUI 继续运行，Needle 仍可在设置中切换使用。
 - 模型目录内置 Hugging Face 下载信息；普通用户可在设置内下载模型，不必手动放置 GGUF。模型权重仍不提交 Git。
 - 设置弹窗顶部使用紧凑标签：`常规`、`下载`、`模型` 和关闭图标。
 
 ## 明确不做
 
-- 不接入 embedding 模型、向量索引、知识库或 `tool_search`。
+- 不接入 embedding 模型、向量索引、知识库或 `tool_search`；后续工具数量增长后再独立设计检索层。
 - 不改动插件 manifest、ToolRegistry 的最终执行规则或增加候选工具白名单。
 - 不增加审计日志、自动重试、账户或网络远程控制。
 - 不在应用启动时预下载 llama-server 或任一 Qwen 模型；只使用 Needle 的用户不额外下载运行时和模型。

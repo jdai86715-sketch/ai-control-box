@@ -1,0 +1,23 @@
+{
+  "version": "b11073",
+  "platforms": {
+    "windows-x64": {
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b11073/llama-b11073-bin-win-cpu-x64.zip",
+      "sha256": "12c50aafb287045cfb55277dcec709e9867f956b0ad15fee4ef031846bbb10ec",
+      "archive": "zip",
+      "binary": "llama-server.exe"
+    },
+    "linux-x64": {
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b11073/llama-b11073-bin-ubuntu-x64.tar.gz",
+      "sha256": "cd34f641b94aa64d756fe7ad0ecc82331d7c063a2677b85629dd99b62e7b42e0",
+      "archive": "tar.gz",
+      "binary": "llama-server"
+    },
+    "linux-arm64": {
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b11073/llama-b11073-bin-ubuntu-arm64.tar.gz",
+      "sha256": "78104080ebfbd1b62d7231306e84115878bb708329461420d834ee76e9374bf2",
+      "archive": "tar.gz",
+      "binary": "llama-server"
+    }
+  }
+}

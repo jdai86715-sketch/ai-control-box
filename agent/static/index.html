@@ -20,7 +20,13 @@
   </main>
   <dialog id="settings-dialog">
     <form id="settings-form" method="dialog">
+      <nav class="settings-tabs" aria-label="设置">
+        <button class="settings-tab is-active" type="button" data-tab="general">常规</button>
+        <button class="settings-tab" type="button" data-tab="downloads">下载</button>
+        <button class="settings-tab" type="button" data-tab="models">模型</button>
+      </nav>
       <button id="close-settings" class="close" type="button" aria-label="关闭">×</button>
+      <section class="settings-page is-active" data-page="general" aria-label="常规">
       <section class="location-panel" aria-label="位置">
         <div class="tools-heading">位置</div>
         <label class="field-label">城市<input id="city" autocomplete="off"></label>
@@ -28,12 +34,6 @@
           <label class="field-label">纬度<input id="latitude" inputmode="decimal"></label>
           <label class="field-label">经度<input id="longitude" inputmode="decimal"></label>
         </div>
-      </section>
-      <section class="location-panel" aria-label="模型">
-        <div class="tools-heading">模型</div>
-        <label class="field-label">当前模型<select id="active-model"><option value="needle">Needle</option><option value="qwen">Qwen via llama.cpp</option></select></label>
-        <label class="field-label">llama-server<input id="llama-server-url" autocomplete="off"></label>
-        <label class="field-label">embedding server<input id="embedding-server-url" autocomplete="off"></label>
       </section>
       <section class="tools-panel" aria-label="工具">
         <div class="tools-heading">工具</div>
@@ -44,6 +44,9 @@
         </label>
         <p id="plugin-message" class="plugin-message" aria-live="polite"></p>
       </section>
+      </section>
+      <section class="settings-page" data-page="downloads" aria-label="下载"><div id="model-downloads" class="model-list"></div></section>
+      <section class="settings-page" data-page="models" aria-label="模型"><div id="model-list" class="model-list"></div></section>
       <button id="save-settings" class="save" type="submit" title="保存" aria-label="保存"><img src="icons/save.png" alt=""></button>
     </form>
   </dialog>

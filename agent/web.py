@@ -10,6 +10,7 @@ import webbrowser
 
 from .config import get_settings, save_settings, get_model_settings, save_model_settings
 from .models import ModelRouter
+from .runtime_manager import RuntimeManager
 from .tools import constraint_error, execute, get_registry, input_constraint_error, install_plugin_files, tool_schemas
 
 
@@ -18,7 +19,8 @@ STATIC = Path(__file__).with_name("static")
 
 class ControlBox:
     def __init__(self) -> None:
-        self._model = ModelRouter()
+        self._runtime = RuntimeManager()
+        self._model = ModelRouter(self._runtime)
 
     def chat(self, text: str) -> dict[str, Any]:
         started = perf_counter()
@@ -57,7 +59,8 @@ class ControlBox:
             "trace": trace,
             "context": {
                 "declared_tool_schemas": len(tool_schemas()),
-                "retrieval_limit": 5,
+                "retrieval_limit": "all" if get_model_settings()["active_model"] == "qwen" else 5,
+                "model_kind": get_model_settings()["active_model"],
                 "feedback_steps": feedback_steps,
             },
         }
@@ -72,6 +75,14 @@ class ControlBox:
     def model_settings(self) -> dict[str, Any]:
         return get_model_settings()
 
+    def models(self) -> dict[str, Any]:
+        settings = get_model_settings()
+        return self._runtime.models(settings["active_model"], settings["qwen"]["model_id"])
+
+    def download_model(self, model_id: str, include_runtime: bool) -> dict[str, Any]:
+        self._runtime.start_download(model_id, include_runtime)
+        return self.models()
+
     def save_model_settings(self, data: dict[str, Any]) -> dict[str, Any]:
         value = save_model_settings(data)
         self._model.reset()
@@ -81,6 +92,9 @@ class ControlBox:
         result = install_plugin_files(files)
         self._model.reset()
         return result
+
+    def close(self) -> None:
+        self._runtime.stop()
 
 
 def handler_for(box: ControlBox) -> type[BaseHTTPRequestHandler]:
@@ -100,6 +114,8 @@ def handler_for(box: ControlBox) -> type[BaseHTTPRequestHandler]:
                     self._json(200, save_settings(body))
                 elif self.path == "/api/model-settings":
                     self._json(200, box.save_model_settings(body))
+                elif self.path == "/api/models/download":
+                    self._json(200, box.download_model(str(body.get("id", "")), bool(body.get("include_runtime"))))
                 elif self.path == "/api/plugins/install":
                     self._json(200, box.install_plugin(list(body.get("files") or [])))
                 else:
@@ -116,6 +132,9 @@ def handler_for(box: ControlBox) -> type[BaseHTTPRequestHandler]:
                 return
             if self.path == "/api/model-settings":
                 self._json(200, box.model_settings())
+                return
+            if self.path == "/api/models":
+                self._json(200, box.models())
                 return
             name = "index.html" if self.path in {"/", "/index.html"} else self.path.lstrip("/")
             target = (STATIC / name).resolve()
@@ -146,4 +165,7 @@ def run() -> None:
     server = ThreadingHTTPServer(("127.0.0.1", 0), handler_for(box))
     url = f"http://127.0.0.1:{server.server_port}/"
     webbrowser.open(url)
-    server.serve_forever()
+    try:
+        server.serve_forever()
+    finally:
+        box.close()

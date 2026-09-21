@@ -1,1 +1,7 @@
-{"active_model":"needle","needle":{},"qwen":{"backend":"llama.cpp","llama_server_url":"http://127.0.0.1:8080","embedding_server_url":"http://127.0.0.1:8080"}}
+{
+  "active_model": "needle",
+  "needle": {},
+  "qwen": {
+    "model_id": "qwen2.5-1.5b-instruct-q4_k_m"
+  }
+}
