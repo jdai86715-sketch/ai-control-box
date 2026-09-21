@@ -10,7 +10,7 @@
 - `main.py` 只负责启动；所有业务运行代码置于 `agent/`。
 - WebUI 只有对话输入、调用/结果输出与新建对话；不使用 Tk。
 - 首个阶段先在 Windows 跑通 Python 模拟动作与 WebUI 反馈。
-- Qwen 第一阶段只解决 llama-server 本地运行时、模型选择与聊天服务启动；不在这一阶段加入 embedding、向量索引或知识库。
+- Qwen 第一阶段只解决 llama-server 本地运行时、Hugging Face 一键模型下载、模型选择与聊天服务启动；不在这一阶段加入 embedding、向量索引或知识库。
 
 ## 已排除项
 
