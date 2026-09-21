@@ -25,8 +25,18 @@ class ControlBox:
     def chat(self, text: str) -> dict[str, Any]:
         started = perf_counter()
         self._model.reset()
-        response = self._model.plan(text)
+        model_kind = get_model_settings()["active_model"]
+        route = "control"
+        if model_kind == "qwen":
+            route = self._model.route(text)
+        response = (
+            {"function_calls": [], "reasoning": "Qwen chat route", "decode_tps": None}
+            if route == "chat"
+            else self._model.plan(text)
+        )
         reply = str(response.get("reply") or "")
+        if route == "chat":
+            reply = self._model.answer(text)
         calls: list[dict[str, Any]] = []
         results: list[dict[str, Any]] = []
         trace: list[dict[str, Any]] = []
@@ -46,7 +56,7 @@ class ControlBox:
                     error = constraint_error(response)
                     if error is not None:
                         results.append(error)
-                    elif get_model_settings()["active_model"] == "qwen":
+                    elif model_kind == "qwen" and route == "control":
                         reply = self._model.answer(text)
                 break
             step_results = [input_constraint_error(call, text) or execute(call) for call in step_calls]
@@ -63,8 +73,8 @@ class ControlBox:
             "trace": trace,
             "context": {
                 "declared_tool_schemas": len(tool_schemas()),
-                "retrieval_limit": "all" if get_model_settings()["active_model"] == "qwen" else 5,
-                "model_kind": get_model_settings()["active_model"],
+                "retrieval_limit": "all" if model_kind == "qwen" else 5,
+                "model_kind": model_kind,
                 "feedback_steps": feedback_steps,
             },
         }

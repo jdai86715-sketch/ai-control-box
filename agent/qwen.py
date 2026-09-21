@@ -34,6 +34,38 @@ class QwenModel:
         calls = payload.get("function_calls") or [] if isinstance(payload, dict) else []
         return {"function_calls": [call for call in calls if isinstance(call, dict) and isinstance(call.get("arguments"), dict)], "reasoning": "Qwen full tool context", "decode_tps": None}
 
+    def route(self, text: str) -> str:
+        """Choose whether a turn needs tools before schemas enter the context."""
+        data = self._post(
+            "/v1/chat/completions",
+            {
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "你是意图分类器。只输出 JSON："
+                            '{"mode":"chat"} 或 {"mode":"control"}。'
+                            "control 仅用于用户明确要求读取、操作或改变真实设备/系统，"
+                            "或明确要求列出本机已安装工具。身份、能力、算术、知识问答和闲聊均为 chat。"
+                            "无法判断时必须使用 chat。"
+                            "例：你是谁 -> chat；你能做什么 -> chat；1+1等于几 -> chat；"
+                            "把卧室灯调到20% -> control；列出可用工具 -> control。"
+                        ),
+                    },
+                    {"role": "user", "content": text},
+                ],
+                "temperature": 0,
+                "max_tokens": 32,
+                "response_format": {"type": "json_object"},
+            },
+        )
+        content = str(data["choices"][0]["message"].get("content") or "{}").strip()
+        try:
+            mode = json.loads(content).get("mode")
+        except json.JSONDecodeError:
+            mode = None
+        return "control" if mode == "control" else "chat"
+
     def answer(self, text: str) -> str:
         data = self._post("/v1/chat/completions", {"messages": [{"role": "system", "content": "你是 AI 控制盒的本地聊天助手。请用简短自然的中文回答普通问题。不要声称已经执行设备操作。"}, {"role": "user", "content": text}], "temperature": 0.3, "max_tokens": 128})
         return str(data["choices"][0]["message"].get("content") or "").strip()
