@@ -34,6 +34,7 @@ ai-control-box/
 │  │  └─ plugins/               # 每个工具插件一个文件夹
 │  │     ├─ simulated_home/     # 模拟灯、风扇、室温
 │  │     ├─ environment/        # 系统时间、Open-Meteo 天气
+│  │     ├─ location_lookup/    # Open-Meteo 地点搜索
 │  │     └─ tool_catalog/       # 动态列出当前工具
 │  └─ static/                  # 单页纯黑 WebUI 与图标
 └─ models/                     # 预留给未来手动放置 .cact 权重
@@ -94,10 +95,11 @@ esp32_ir/
 | `set_fan(room, level)` | 模拟风扇档位 |
 | `get_temperature(room)` | 模拟房间温度 |
 | `get_system_time()` | Windows 系统时间 |
-| `get_weather()` | 当前配置坐标的实时天气 |
+| `search_location(query)` | 搜索地点，返回可供天气工具使用的地点 ID |
+| `get_weather(location_id?, view?, fields?, hours?, forecast_days?)` | 查询默认或指定地点的当前、逐小时、逐日天气 |
 | `list_tools()` | 输出英文 `name / description` 工具表 |
 
-天气调用 Open-Meteo；位置由 [settings/environment.json](settings/environment.json) 决定，也可在网页右上角齿轮中修改。城市字段用于显示，经纬度才是实际查询依据。
+天气调用 Open-Meteo；位置由 [settings/environment.json](settings/environment.json) 决定，也可在网页右上角齿轮中修改。城市字段用于显示，经纬度才是实际查询依据。用户指定城市时，模型会先调用 `search_location`，宿主将第一条结果中的 `location_id` 回喂原任务，再由模型调用 `get_weather`；这避免小模型猜测经纬度或地点 ID。未指定城市时，`get_weather` 可使用设置中的默认坐标。
 
 ## Needle 模型与运行文件
 
@@ -125,8 +127,8 @@ C:\Users\<用户名>\.cache\cactus-needle\v3\3.0.1\needle3.cact
 ## 增加一个工具
 
 1. 新建 `agent/tools/plugins/<插件 id>/manifest.json` 和 `tool.py`。
-2. 在 manifest 中填写英文 `name`、`description`、参数 schema、触发词，以及中文 `name_zh`、`description_zh`。为 Qwen 增加 `index.keywords`（中英关键词）；需要连续调用的工具可用 `index.related_tools` 声明关联工具。
-3. 在 `tool.py` 写同名函数并返回 `ToolResult`；保存后自动扫描。
+2. 在 manifest 中填写英文 `name`、`description`、参数 schema、触发词，以及中文 `name_zh`、`description_zh`。为 Qwen 增加 `index.keywords`（中英关键词）；需要连续调用的工具可用 `index.related_tools` 声明关联工具。若一个工具的结果是下一步的必要参数，标记 `result_required: true`。
+3. 在 `tool.py` 写同名函数并返回 `ToolResult`；如需提示下一步，可在结果 `data` 中附 `agent_continuation: {"tool": "下一工具名", "arguments": {...}}`。它只回填上下文和参数，不会绕过模型或直接执行下一工具。保存后自动扫描。
 4. 通过网页提交一条明确英文指令，确认 JSON、执行结果都正确。
 
 小模型的 schema 与演示指令目前以英文为主；内置检索也依赖这些英文工具描述，不能替代模型本身的中文理解能力。

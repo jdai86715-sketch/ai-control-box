@@ -57,6 +57,13 @@ class ModelRouter:
             return (yield from stream(results))
         return self._model.feed_results(results)
 
+    def keep_pending_calls(self, count: int) -> None:
+        self._ensure_current()
+        assert self._model is not None
+        trim = getattr(self._model, "keep_pending_calls", None)
+        if callable(trim):
+            trim(count)
+
     def reset(self) -> None:
         self._ensure_current()
         assert self._model is not None

@@ -163,7 +163,23 @@ class ToolRegistry:
                         break
                 if len(selected) >= limit:
                     break
-            return [self._tools[name].schema for name in selected]
+            ordered: list[str] = []
+            for name in selected:
+                related = self._tools[name].meta.get("index", {}).get("related_tools", [])
+                if isinstance(related, list):
+                    for related_name in related:
+                        if related_name in selected and related_name not in ordered:
+                            ordered.append(related_name)
+                if name not in ordered:
+                    ordered.append(name)
+            return [self._tools[name].schema for name in ordered]
+
+    def result_required(self, name: str) -> bool:
+        """Whether a later call must wait for this tool's result."""
+        self.refresh()
+        with self._lock:
+            tool = self._tools.get(name)
+            return bool(tool and tool.meta.get("result_required"))
 
     def list_tools(self) -> list[dict[str, str]]:
         self.refresh()

@@ -1,0 +1,8 @@
+{
+  "id": "location_lookup",
+  "name_zh": "地点查询",
+  "entry": "tool.py",
+  "tools": [
+    {"name": "search_location", "name_zh": "搜索地点", "description": "Find the first matching city or place and return its location_id for get_weather.", "description_zh": "搜索地点并返回供天气工具使用的地点 ID。", "function": "search_location", "result_required": true, "index": {"keywords": ["location", "city", "place", "geocode", "地点", "城市", "位置", "经纬度"]}, "parameters": {"type": "object", "properties": {"query": {"type": "string", "description": "City, place, postal code, or a name with region."}}, "required": ["query"]}}
+  ]
+}

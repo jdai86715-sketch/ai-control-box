@@ -92,7 +92,7 @@ class ControlBox:
                     break
                 batch_results: list[dict[str, Any]] = []
                 limit_reached = False
-                for call in step_calls:
+                for index, call in enumerate(step_calls):
                     if steps >= MAX_AGENT_STEPS:
                         limit_reached = True
                         result = {"ok": False, "event": "agent.limit", "data": {"name": call.get("name")}, "message": f"本轮已达到 {MAX_AGENT_STEPS} 步工具调用上限，未执行 {call.get('name')}。"}
@@ -108,6 +108,9 @@ class ControlBox:
                     results.append(result)
                     batch_results.append(result)
                     yield {"type": "tool_result", "step": steps, "result": result}
+                    if get_registry().result_required(str(call.get("name", ""))) and index < len(step_calls) - 1:
+                        self._model.keep_pending_calls(len(batch_results))
+                        break
                 response = yield from self._model.feed_result_events(batch_results)
                 if limit_reached:
                     break
