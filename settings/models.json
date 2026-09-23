@@ -1,7 +1,7 @@
 {
-  "active_model": "needle",
+  "active_model": "qwen",
   "needle": {},
   "qwen": {
-    "model_id": "qwen2.5-1.5b-instruct-q4_k_m"
+    "model_id": "qwen2.5-3b-instruct-q4_k_m"
   }
 }
