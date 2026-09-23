@@ -36,9 +36,25 @@ class ModelRouter:
         assert self._model is not None
         return self._model.plan(text)
 
+    def plan_events(self, text: str):
+        self._ensure_current()
+        assert self._model is not None
+        stream = getattr(self._model, "plan_stream", None)
+        if callable(stream):
+            return (yield from stream(text))
+        return self._model.plan(text)
+
     def feed_results(self, results: list[dict[str, Any]]) -> dict[str, Any]:
         self._ensure_current()
         assert self._model is not None
+        return self._model.feed_results(results)
+
+    def feed_result_events(self, results: list[dict[str, Any]]):
+        self._ensure_current()
+        assert self._model is not None
+        stream = getattr(self._model, "feed_results_stream", None)
+        if callable(stream):
+            return (yield from stream(results))
         return self._model.feed_results(results)
 
     def reset(self) -> None:

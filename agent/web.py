@@ -15,6 +15,7 @@ from .tools import constraint_error, execute, get_registry, input_constraint_err
 
 
 STATIC = Path(__file__).with_name("static")
+MAX_AGENT_STEPS = 5
 
 
 class ControlBox:
@@ -68,6 +69,43 @@ class ControlBox:
                 "feedback_steps": feedback_steps,
             },
         }
+
+    def stream_chat(self, text: str):
+        started = perf_counter()
+        self._model.reset()
+        model_kind = get_model_settings()["active_model"]
+        steps = 0
+        calls: list[dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
+        response: dict[str, Any] = {}
+        yield {"type": "turn_start", "context": {"model_kind": model_kind, "declared_tool_schemas": len(tool_schemas()), "max_steps": MAX_AGENT_STEPS}}
+        try:
+            response = yield from self._model.plan_events(text)
+            while steps < MAX_AGENT_STEPS:
+                step_calls = _unique_calls(response.get("function_calls") or [])
+                if not step_calls:
+                    error = constraint_error(response)
+                    if error is not None:
+                        yield {"type": "tool_result", "step": steps + 1, "result": error}
+                    break
+                call = step_calls[0]
+                steps += 1
+                calls.append(call)
+                yield {"type": "tool_call", "step": steps, "call": call, "reasoning": response.get("reasoning")}
+                result = input_constraint_error(call, text) or execute(call)
+                results.append(result)
+                yield {"type": "tool_result", "step": steps, "result": result}
+                response = yield from self._model.feed_result_events([result])
+            else:
+                yield {"type": "limit", "message": f"本轮已完成 {MAX_AGENT_STEPS} 步工具调用。"}
+        except Exception as error:
+            yield {"type": "error", "message": str(error)}
+        finally:
+            yield {
+                "type": "done",
+                "stats": {"elapsed_seconds": perf_counter() - started, "decode_tps": response.get("decode_tps")},
+                "context": {"model_kind": model_kind, "declared_tool_schemas": len(tool_schemas()), "feedback_steps": steps, "calls": len(calls), "results": len(results)},
+            }
 
     def reset(self) -> dict[str, bool]:
         self._model.reset()
@@ -126,6 +164,11 @@ def handler_for(box: ControlBox) -> type[BaseHTTPRequestHandler]:
                     if not text:
                         raise ValueError("请输入一句指令。")
                     self._json(200, box.chat(text))
+                elif self.path == "/api/chat/stream":
+                    text = str(body.get("text", "")).strip()
+                    if not text:
+                        raise ValueError("请输入一句指令。")
+                    self._stream(box.stream_chat(text))
                 elif self.path == "/api/reset":
                     self._json(200, box.reset())
                 elif self.path == "/api/settings":
@@ -171,6 +214,16 @@ def handler_for(box: ControlBox) -> type[BaseHTTPRequestHandler]:
 
         def _json(self, status: int, data: dict[str, Any]) -> None:
             self._send(status, json.dumps(data, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
+
+        def _stream(self, events) -> None:
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            for event in events:
+                payload = json.dumps(event, ensure_ascii=False)
+                self.wfile.write(f"event: {event['type']}\ndata: {payload}\n\n".encode("utf-8"))
+                self.wfile.flush()
 
         def log_message(self, *_: object) -> None:
             return
