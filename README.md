@@ -120,12 +120,12 @@ C:\Users\<用户名>\.cache\cactus-needle\v3\3.0.1\needle3.cact
 
 在“模型”中点击未安装的 Qwen 项会切到“下载”；点击下载时，如果本机尚未准备 llama-server，会先确认下载该依赖，随后自动继续下载模型。Qwen 模型从 Hugging Face 下载到 `models/`，运行时从 llama.cpp 官方发行包下载到 `runtime/bin/`；两者都不会提交 Git。
 
-首次选择已安装的 Qwen 并发送指令时，应用会在本机启动 llama-server。当前第一版会把动态工具注册表的完整 schema 注入 Qwen 上下文；向量检索尚未接入。
+首次选择已安装的 Qwen 并发送指令时，应用会在本机启动 llama-server。Qwen 每条输入先由宿主使用插件 manifest 中的中英关键词做轻量检索，只注入最多 5 个相关 schema；关联工具可一并注入。候选工具只用于压缩上下文，不是执行白名单：实际执行仍由动态 ToolRegistry 按名称解析。向量检索尚未接入。
 
 ## 增加一个工具
 
 1. 新建 `agent/tools/plugins/<插件 id>/manifest.json` 和 `tool.py`。
-2. 在 manifest 中填写英文 `name`、`description`、参数 schema、触发词，以及中文 `name_zh`、`description_zh`。
+2. 在 manifest 中填写英文 `name`、`description`、参数 schema、触发词，以及中文 `name_zh`、`description_zh`。为 Qwen 增加 `index.keywords`（中英关键词）；需要连续调用的工具可用 `index.related_tools` 声明关联工具。
 3. 在 `tool.py` 写同名函数并返回 `ToolResult`；保存后自动扫描。
 4. 通过网页提交一条明确英文指令，确认 JSON、执行结果都正确。
 

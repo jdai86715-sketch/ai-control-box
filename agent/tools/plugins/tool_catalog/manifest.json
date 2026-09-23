@@ -3,6 +3,6 @@
   "name_zh": "工具目录",
   "entry": "tool.py",
   "tools": [
-    {"name": "list_tools", "name_zh": "列出工具", "description": "List all available local tools.", "description_zh": "列出当前已加载的本地工具。", "function": "list_tools", "triggers": ["\\btools?\\b"], "parameters": {"type": "object", "properties": {}}}
+    {"name": "list_tools", "name_zh": "列出工具", "description": "List all available local tools.", "description_zh": "列出当前已加载的本地工具。", "function": "list_tools", "triggers": ["\\btools?\\b"], "index": {"keywords": ["tool", "tools", "工具", "功能", "能做什么"]}, "parameters": {"type": "object", "properties": {}}}
   ]
 }

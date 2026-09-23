@@ -11,20 +11,23 @@ from .runtime_manager import RuntimeManager
 class QwenModel:
     """One Qwen agent turn: natural reply and optional tool calls share one context."""
 
-    def __init__(self, runtime: RuntimeManager, model_id: str, schemas: Callable[[], list[dict[str, Any]]]) -> None:
+    def __init__(self, runtime: RuntimeManager, model_id: str, schemas: Callable[[str], list[dict[str, Any]]]) -> None:
         self._runtime = runtime
         self._model_id = model_id
         self._schemas = schemas
         self._messages: list[dict[str, Any]] = []
         self._pending_calls: list[dict[str, Any]] = []
+        self._active_schemas: list[dict[str, Any]] = []
 
     def plan(self, text: str) -> dict[str, Any]:
         self._start_turn()
+        self._active_schemas = self._schemas(text)
         self._messages.append({"role": "user", "content": text})
         return self._complete("Qwen native tools")
 
     def plan_stream(self, text: str) -> Generator[dict[str, Any], None, dict[str, Any]]:
         self._start_turn()
+        self._active_schemas = self._schemas(text)
         self._messages.append({"role": "user", "content": text})
         return (yield from self._complete_stream("Qwen native tools"))
 
@@ -39,6 +42,7 @@ class QwenModel:
     def reset(self) -> None:
         self._messages = []
         self._pending_calls = []
+        self._active_schemas = []
 
     def _start_turn(self) -> None:
         if not self._messages:
@@ -51,7 +55,10 @@ class QwenModel:
             self._messages.append({"role": "tool", "tool_call_id": call["tool_call_id"], "content": json.dumps(result, ensure_ascii=False)})
 
     def _complete(self, reasoning: str) -> dict[str, Any]:
-        data = self._post("/v1/chat/completions", {"messages": self._messages, "tools": [{"type": "function", "function": schema} for schema in self._schemas()], "tool_choice": "auto", "temperature": 0, "max_tokens": 512})
+        body: dict[str, Any] = {"messages": self._messages, "temperature": 0, "max_tokens": 512}
+        if self._active_schemas:
+            body.update({"tools": [{"type": "function", "function": schema} for schema in self._active_schemas], "tool_choice": "auto"})
+        data = self._post("/v1/chat/completions", body)
         message = dict(data["choices"][0]["message"])
         message["content"] = str(message.get("content") or "")
         self._messages.append(message)
@@ -62,15 +69,18 @@ class QwenModel:
     def _complete_stream(self, reasoning: str) -> Generator[dict[str, Any], None, dict[str, Any]]:
         content: list[str] = []
         tool_calls: dict[int, dict[str, Any]] = {}
-        body = {
+        body: dict[str, Any] = {
             "messages": self._messages,
-            "tools": [{"type": "function", "function": schema} for schema in self._schemas()],
-            "tool_choice": "auto",
-            "parallel_tool_calls": False,
             "temperature": 0,
             "max_tokens": 512,
             "stream": True,
         }
+        if self._active_schemas:
+            body.update({
+                "tools": [{"type": "function", "function": schema} for schema in self._active_schemas],
+                "tool_choice": "auto",
+                "parallel_tool_calls": False,
+            })
         for data in self._post_stream("/v1/chat/completions", body):
             choices = data.get("choices") or []
             if not choices:

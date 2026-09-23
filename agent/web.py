@@ -11,7 +11,7 @@ import webbrowser
 from .config import get_settings, save_settings, get_model_settings, save_model_settings
 from .models import ModelRouter
 from .runtime_manager import RuntimeManager
-from .tools import constraint_error, execute, get_registry, input_constraint_error, install_plugin_files, tool_schemas
+from .tools import candidate_tool_schemas, constraint_error, execute, get_registry, input_constraint_error, install_plugin_files, tool_schemas
 
 
 STATIC = Path(__file__).with_name("static")
@@ -27,6 +27,7 @@ class ControlBox:
         started = perf_counter()
         self._model.reset()
         model_kind = get_model_settings()["active_model"]
+        declared_schema_count = len(candidate_tool_schemas(text)) if model_kind == "qwen" else len(tool_schemas())
         response = self._model.plan(text)
         reply = str(response.get("reply") or "")
         calls: list[dict[str, Any]] = []
@@ -63,8 +64,8 @@ class ControlBox:
             "stats": {"elapsed_seconds": perf_counter() - started, "decode_tps": first_decode_tps},
             "trace": trace,
             "context": {
-                "declared_tool_schemas": len(tool_schemas()),
-                "retrieval_limit": "all" if model_kind == "qwen" else 5,
+                "declared_tool_schemas": declared_schema_count,
+                "retrieval_limit": 5,
                 "model_kind": model_kind,
                 "feedback_steps": feedback_steps,
             },
@@ -74,11 +75,12 @@ class ControlBox:
         started = perf_counter()
         self._model.reset()
         model_kind = get_model_settings()["active_model"]
+        declared_schema_count = len(candidate_tool_schemas(text)) if model_kind == "qwen" else len(tool_schemas())
         steps = 0
         calls: list[dict[str, Any]] = []
         results: list[dict[str, Any]] = []
         response: dict[str, Any] = {}
-        yield {"type": "turn_start", "context": {"model_kind": model_kind, "declared_tool_schemas": len(tool_schemas()), "max_steps": MAX_AGENT_STEPS}}
+        yield {"type": "turn_start", "context": {"model_kind": model_kind, "declared_tool_schemas": declared_schema_count, "max_steps": MAX_AGENT_STEPS}}
         try:
             response = yield from self._model.plan_events(text)
             while steps < MAX_AGENT_STEPS:
@@ -117,7 +119,7 @@ class ControlBox:
             yield {
                 "type": "done",
                 "stats": {"elapsed_seconds": perf_counter() - started, "decode_tps": response.get("decode_tps")},
-                "context": {"model_kind": model_kind, "declared_tool_schemas": len(tool_schemas()), "feedback_steps": steps, "calls": len(calls), "results": len(results)},
+                "context": {"model_kind": model_kind, "declared_tool_schemas": declared_schema_count, "feedback_steps": steps, "calls": len(calls), "results": len(results)},
             }
 
     def reset(self) -> dict[str, bool]:

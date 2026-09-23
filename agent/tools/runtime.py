@@ -12,6 +12,7 @@ from typing import Any, Callable
 
 
 PLUGINS = Path(__file__).with_name("plugins")
+_INDEX_STOP_WORDS = {"a", "an", "and", "at", "for", "from", "in", "is", "of", "on", "or", "the", "to", "with"}
 
 
 @dataclass
@@ -122,10 +123,83 @@ class ToolRegistry:
         with self._lock:
             return [tool.schema for tool in self._tools.values()]
 
+    def candidate_schemas(self, text: str, limit: int = 5) -> list[dict[str, Any]]:
+        """Return only schemas relevant to one user turn.
+
+        This is a context-size optimization, never an execution permission check.
+        ``execute()`` continues to resolve every model-returned name from the
+        live registry.
+        """
+        self.refresh()
+        query = self._normalize(text)
+        if not query or limit < 1:
+            return []
+        with self._lock:
+            ranked = [
+                (self._match_score(query, name, tool), position, name)
+                for position, (name, tool) in enumerate(self._tools.items())
+            ]
+            ranked = [item for item in ranked if item[0] > 0]
+            ranked.sort(key=lambda item: (-item[0], item[1]))
+
+            selected: list[str] = []
+            for _, _, name in ranked:
+                if name not in selected:
+                    selected.append(name)
+                if len(selected) >= limit:
+                    break
+
+            # Keep declared workflow helpers visible in the same turn.  A
+            # missing helper is ignored so an older plugin manifest remains
+            # compatible while its companion plugin has not been installed.
+            for name in tuple(selected):
+                related = self._tools[name].meta.get("index", {}).get("related_tools", [])
+                if not isinstance(related, list):
+                    continue
+                for related_name in related:
+                    if related_name in self._tools and related_name not in selected:
+                        selected.append(related_name)
+                    if len(selected) >= limit:
+                        break
+                if len(selected) >= limit:
+                    break
+            return [self._tools[name].schema for name in selected]
+
     def list_tools(self) -> list[dict[str, str]]:
         self.refresh()
         with self._lock:
             return [{"name": name, "description": tool.schema["description"]} for name, tool in self._tools.items()]
+
+    @staticmethod
+    def _normalize(value: str) -> str:
+        return re.sub(r"\s+", " ", value.casefold()).strip()
+
+    def _match_score(self, query: str, name: str, tool: RegisteredTool) -> int:
+        index = tool.meta.get("index", {})
+        keywords = index.get("keywords", []) if isinstance(index, dict) else []
+        terms = [name, name.replace("_", " ")]
+        if keywords:
+            terms.extend(str(keyword) for keyword in keywords if str(keyword).strip())
+        else:
+            # Older plugins remain discoverable without an index block.  New
+            # plugins should supply keywords so generic prose cannot match
+            # unrelated requests such as "turn on ...".
+            terms.append(tool.schema["description"])
+        score = 0
+        for term in terms:
+            normalized = self._normalize(term)
+            if not normalized:
+                continue
+            if normalized in query:
+                score = max(score, 100 + len(normalized))
+                continue
+            words = [
+                word for word in re.findall(r"[a-z0-9_]+", normalized)
+                if len(word) >= 4 and word not in _INDEX_STOP_WORDS
+            ]
+            if words and any(re.search(rf"(?<![a-z0-9_]){re.escape(word)}(?![a-z0-9_])", query) for word in words):
+                score = max(score, 10)
+        return score
 
     def settings_tools(self) -> dict[str, Any]:
         self.refresh()
@@ -204,6 +278,10 @@ def get_registry() -> ToolRegistry:
 
 def tool_schemas() -> list[dict[str, Any]]:
     return _registry.schemas()
+
+
+def candidate_tool_schemas(text: str, limit: int = 5) -> list[dict[str, Any]]:
+    return _registry.candidate_schemas(text, limit)
 
 
 def execute(call: dict[str, Any]) -> dict[str, Any]:

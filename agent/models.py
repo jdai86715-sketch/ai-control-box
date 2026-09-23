@@ -6,7 +6,7 @@ from .needle import NeedleModel
 from .qwen import QwenModel
 from .config import get_model_settings
 from .runtime_manager import RuntimeManager
-from .tools import get_registry, tool_schemas
+from .tools import candidate_tool_schemas, get_registry, tool_schemas
 
 
 TOOL_INDEX_PATH = Path(__file__).parent.parent / "models" / "needle-tools.idx"
@@ -27,7 +27,7 @@ class ModelRouter:
         registry.refresh()
         settings = get_model_settings()
         if self._model is None or self._tool_version != registry.version or self._active_model != settings["active_model"]:
-            self._model = NeedleModel(tool_schemas(), str(TOOL_INDEX_PATH)) if settings["active_model"] == "needle" else QwenModel(self._runtime, settings["qwen"]["model_id"], tool_schemas)
+            self._model = NeedleModel(tool_schemas(), str(TOOL_INDEX_PATH)) if settings["active_model"] == "needle" else QwenModel(self._runtime, settings["qwen"]["model_id"], candidate_tool_schemas)
             self._tool_version = registry.version
             self._active_model = settings["active_model"]
 
