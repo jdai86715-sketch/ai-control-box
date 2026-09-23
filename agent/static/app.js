@@ -59,17 +59,6 @@ function moveDraftToTrace(state) {
   state.draft = '';
 }
 
-function appendToolResult(state, result) {
-  if (result.event === 'tools.list') {
-    state.turn.appendChild(toolTable(result.data.tools || []));
-    return;
-  }
-  const message = document.createElement('p');
-  message.className = result.ok ? 'result' : 'error';
-  message.textContent = result.message;
-  state.turn.appendChild(message);
-}
-
 function handleAgentEvent(state, event) {
   if (event.type === 'text_delta') {
     state.draft += event.text;
@@ -78,8 +67,7 @@ function handleAgentEvent(state, event) {
     moveDraftToTrace(state);
     appendTrace(state, `Step ${event.step} · ${event.call.name}(${JSON.stringify(event.call.arguments)})`);
   } else if (event.type === 'tool_result') {
-    appendTrace(state, `Step ${event.step} · result`);
-    appendToolResult(state, event.result);
+    appendTrace(state, `Step ${event.step} · ${event.result.message}`);
   } else if (event.type === 'limit') {
     appendTrace(state, event.message);
   } else if (event.type === 'error') {

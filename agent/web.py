@@ -88,14 +88,27 @@ class ControlBox:
                     if error is not None:
                         yield {"type": "tool_result", "step": steps + 1, "result": error}
                     break
-                call = step_calls[0]
-                steps += 1
-                calls.append(call)
-                yield {"type": "tool_call", "step": steps, "call": call, "reasoning": response.get("reasoning")}
-                result = input_constraint_error(call, text) or execute(call)
-                results.append(result)
-                yield {"type": "tool_result", "step": steps, "result": result}
-                response = yield from self._model.feed_result_events([result])
+                batch_results: list[dict[str, Any]] = []
+                limit_reached = False
+                for call in step_calls:
+                    if steps >= MAX_AGENT_STEPS:
+                        limit_reached = True
+                        result = {"ok": False, "event": "agent.limit", "data": {"name": call.get("name")}, "message": f"本轮已达到 {MAX_AGENT_STEPS} 步工具调用上限，未执行 {call.get('name')}。"}
+                        batch_results.append(result)
+                        results.append(result)
+                        yield {"type": "limit", "message": result["message"]}
+                        yield {"type": "tool_result", "step": steps, "result": result}
+                        continue
+                    steps += 1
+                    calls.append(call)
+                    yield {"type": "tool_call", "step": steps, "call": call, "reasoning": response.get("reasoning")}
+                    result = input_constraint_error(call, text) or execute(call)
+                    results.append(result)
+                    batch_results.append(result)
+                    yield {"type": "tool_result", "step": steps, "result": result}
+                response = yield from self._model.feed_result_events(batch_results)
+                if limit_reached:
+                    break
             else:
                 yield {"type": "limit", "message": f"本轮已完成 {MAX_AGENT_STEPS} 步工具调用。"}
         except Exception as error:

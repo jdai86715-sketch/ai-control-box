@@ -93,7 +93,7 @@ class QwenModel:
                     call["function"]["arguments"] += str(function["arguments"])
         message: dict[str, Any] = {"role": "assistant", "content": "".join(content)}
         if tool_calls:
-            message["tool_calls"] = [tool_calls[index] for index in sorted(tool_calls)[:1]]
+            message["tool_calls"] = [tool_calls[index] for index in sorted(tool_calls)]
         self._messages.append(message)
         calls = self._native_calls(message.get("tool_calls") or [])
         self._pending_calls = calls
