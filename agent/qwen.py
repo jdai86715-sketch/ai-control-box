@@ -47,7 +47,7 @@ class QwenModel:
     def _start_turn(self) -> None:
         if not self._messages:
             self._messages = [
-                {"role": "system", "content": "你当前运行在 AI 控制盒环境。每条输入都是独立的单轮。你可以直接回答，也可以主动调用提供的工具：当用户要求执行动作，或回答需要当前真实状态时，调用合适工具；普通问题直接回答。当前时间、天气、设备状态不能凭空回答。工具存在不等于必须调用；list_tools 只用于用户明确要求工具名称或工具清单。工具完成后，依据结果自然回答用户；仅在确实需要下一步信息或动作时继续调用。"},
+                {"role": "system", "content": "你运行在 AI 控制盒的单轮对话中。普通问题直接回答；需要当前真实信息或执行动作时使用提供的工具。不要编造真实状态；决定使用工具时直接返回 native tool_call，工具结果后自然回答。"},
             ]
 
     def _append_results(self, results: list[dict[str, Any]]) -> None:
