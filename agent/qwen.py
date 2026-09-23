@@ -11,6 +11,9 @@ from .runtime_manager import RuntimeManager
 class QwenModel:
     """One Qwen agent turn: natural reply and optional tool calls share one context."""
 
+    _BASE_INSTRUCTION = "你运行在 AI 控制盒的单轮对话中。普通问题直接回答；需要当前真实信息或执行动作时使用提供的工具。不要编造真实状态。工具结果后自然回答。"
+    _TOOL_CALL_INSTRUCTION = "当提供的工具能完成用户明确请求时，直接返回 native tool_call；不要用文字声称自己不能调用工具。"
+
     def __init__(self, runtime: RuntimeManager, model_id: str, schemas: Callable[[str], list[dict[str, Any]]]) -> None:
         self._runtime = runtime
         self._model_id = model_id
@@ -20,14 +23,14 @@ class QwenModel:
         self._active_schemas: list[dict[str, Any]] = []
 
     def plan(self, text: str) -> dict[str, Any]:
-        self._start_turn()
         self._active_schemas = self._schemas(text)
+        self._start_turn()
         self._messages.append({"role": "user", "content": text})
         return self._complete("Qwen native tools")
 
     def plan_stream(self, text: str) -> Generator[dict[str, Any], None, dict[str, Any]]:
-        self._start_turn()
         self._active_schemas = self._schemas(text)
+        self._start_turn()
         self._messages.append({"role": "user", "content": text})
         return (yield from self._complete_stream("Qwen native tools"))
 
@@ -46,8 +49,11 @@ class QwenModel:
 
     def _start_turn(self) -> None:
         if not self._messages:
+            instruction = self._BASE_INSTRUCTION
+            if self._active_schemas:
+                instruction += self._TOOL_CALL_INSTRUCTION
             self._messages = [
-                {"role": "system", "content": "你运行在 AI 控制盒的单轮对话中。普通问题直接回答；需要当前真实信息或执行动作时使用提供的工具。不要编造真实状态；决定使用工具时直接返回 native tool_call，工具结果后自然回答。"},
+                {"role": "system", "content": instruction},
             ]
 
     def _append_results(self, results: list[dict[str, Any]]) -> None:
