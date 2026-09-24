@@ -19,6 +19,7 @@ ROOT = Path(__file__).parent.parent
 RUNTIME_MANIFEST = ROOT / "runtime" / "manifest.json"
 MODELS_DIR = ROOT / "models"
 CATALOG_PATH = MODELS_DIR / "catalog.json"
+KV_CACHE_REUSE_TOKENS = 256
 
 
 class RuntimeManager:
@@ -83,7 +84,16 @@ class RuntimeManager:
             if self._process is not None and self._process.poll() is None and self._server_model == model_id:
                 return self._server_url()
             self._stop_locked()
-            command = [str(binary), "-m", str(model_path), "-c", str(item.get("context_size", 4096)), "--host", "127.0.0.1", "--port", "8080", "--no-webui"]
+            command = [
+                str(binary),
+                "-m", str(model_path),
+                "-c", str(item.get("context_size", 4096)),
+                "--parallel", "1",
+                "--cache-reuse", str(KV_CACHE_REUSE_TOKENS),
+                "--host", "127.0.0.1",
+                "--port", "8080",
+                "--no-webui",
+            ]
             flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
             self._process = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=flags)
             self._server_model = model_id
