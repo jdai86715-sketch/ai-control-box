@@ -51,7 +51,8 @@
 - 连续工具依赖使用通用 manifest/result 协议：`result_required` 会让宿主在该工具结果返回前暂停同批后续调用；结果内的 `agent_continuation` 会带原用户任务和已解析参数回喂模型，模型仍自行产生下一次调用。没有新增执行白名单或天气专用执行分支。
 - 已在单一干净的 Qwen 3B llama-server 实例中真实验证：`上海天气怎么样` 依次调用 `search_location(上海)` 与带真实 `location_id` 的 `get_weather`；`帮我查上海未来3小时温度` 同样完成两步并保留 `view=hourly`、`hours=3`。
 - Qwen 每一次实际请求的 system prompt 与候选工具名会作为 display-only SSE 事件写入现有折叠的 `Reasoning & context`：初始请求显示基础/天气提示；工具结果回喂后以新 `user` 消息重发原用户任务、已解析参数和下一步提示。system prompt 本轮固定不再追加临时任务；展示不改请求内容、不额外注入 schema，也不展示未发送的完整 schema。
-- Qwen 的 llama-server 现以单槽启动，并设置 `--cache-reuse 256`；目标是让同一条网页输入的连续工具步骤复用共同 prompt 前缀的 KV，而不是被多槽调度打散。该启动参数需要重启服务才会生效。
+- Qwen 的 llama-server 现以单槽启动，并设置 `--cache-reuse 256`；每次 Qwen 请求也显式发送 `cache_prompt: true` 与 `id_slot: 0`，目标是让同一条网页输入的连续工具步骤复用共同 prompt 前缀的 KV，而不是被多槽调度打散。该启动参数需要重启服务才会生效。
+- 已用同一份约 900 token prompt 连续请求两次真实验证 KV 生效：首次 6.808 秒，第二次 0.066 秒。此版本 `/slots` 在请求完成后仍会显示 `n_prompt_tokens_cache: 0`，不作为命中判据。南京已真实完成地点搜索→天气查询；Open-Meteo 对“厦门”中文查询返回空、对 `Xiamen` 返回厦门市，中文地点 fallback 尚未设计。
 
 ## 下一步
 

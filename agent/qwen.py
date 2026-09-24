@@ -102,7 +102,13 @@ class QwenModel:
         self._pending_user_injections.append(instruction)
 
     def _complete(self, reasoning: str) -> dict[str, Any]:
-        body: dict[str, Any] = {"messages": self._messages, "temperature": 0, "max_tokens": 512}
+        body: dict[str, Any] = {
+            "messages": self._messages,
+            "temperature": 0,
+            "max_tokens": 512,
+            "cache_prompt": True,
+            "id_slot": 0,
+        }
         prompt_context = self._prompt_context()
         self._pending_user_injections = []
         if self._active_schemas:
@@ -123,6 +129,8 @@ class QwenModel:
             "temperature": 0,
             "max_tokens": 512,
             "stream": True,
+            "cache_prompt": True,
+            "id_slot": 0,
         }
         prompt_context = self._prompt_context()
         self._pending_user_injections = []
