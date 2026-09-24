@@ -127,8 +127,8 @@ C:\Users\<用户名>\.cache\cactus-needle\v3\3.0.1\needle3.cact
 ## 增加一个工具
 
 1. 新建 `agent/tools/plugins/<插件 id>/manifest.json` 和 `tool.py`。
-2. 在 manifest 中填写英文 `name`、`description`、参数 schema、触发词，以及中文 `name_zh`、`description_zh`。为 Qwen 增加 `index.keywords`（中英关键词）；需要连续调用的工具可用 `index.related_tools` 声明关联工具。若一个工具的结果是下一步的必要参数，标记 `result_required: true`。
-3. 在 `tool.py` 写同名函数并返回 `ToolResult`；如需提示下一步，可在结果 `data` 中附 `agent_continuation: {"tool": "下一工具名", "arguments": {...}}`。它只回填上下文和参数，不会绕过模型或直接执行下一工具。保存后自动扫描。
+2. 在 manifest 中填写英文 `name`、`description`、参数 schema、触发词，以及中文 `name_zh`、`description_zh`。为 Qwen 增加 `index.keywords`（中英关键词）；需要连续调用的工具可用 `index.related_tools` 声明关联工具。工具可用 `agent_hints` 声明自己需要的调用规则；需要动态环境信息时，以 `agent_context_function` 指向插件 `tool.py` 内无参函数。两者只在该工具成为候选时注入。若一个工具的结果是下一步的必要参数，标记 `result_required: true`。
+3. 在 `tool.py` 写同名函数并返回 `ToolResult`；如需提示下一步，可在结果 `data` 中附 `agent_continuation: {"tool": "下一工具名", "arguments": {...}}`。是否产生这份 continuation 由工具自行决定；运行时只把它通用地回填成新的用户消息，不会绕过模型或直接执行下一工具。保存后自动扫描。
 4. 通过网页提交一条明确英文指令，确认 JSON、执行结果都正确。
 
 小模型的 schema 与演示指令目前以英文为主；内置检索也依赖这些英文工具描述，不能替代模型本身的中文理解能力。

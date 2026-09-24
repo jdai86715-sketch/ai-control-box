@@ -33,6 +33,14 @@ DAILY_FIELDS = {
 }
 
 
+def weather_agent_context() -> str:
+    location = get_settings()["location"]
+    return (
+        f"Default weather location is {location['city']} ({location['latitude']}, {location['longitude']}). "
+        "When the user does not name a location, call get_weather without location_id."
+    )
+
+
 def get_system_time() -> ToolResult:
     now = datetime.now().astimezone()
     return ToolResult(True, "time.read", {"datetime": now.isoformat(), "timezone": now.tzname()}, f"当前时间：{now.strftime('%Y-%m-%d %H:%M')}")

@@ -31,6 +31,7 @@ class RegisteredTool:
     schema: dict[str, Any]
     meta: dict[str, Any]
     handler: Callable[..., ToolResult]
+    context_provider: Callable[[], str] | None = None
 
 
 class ToolRegistry:
@@ -102,6 +103,12 @@ class ToolRegistry:
             handler = getattr(module, function_name, None)
             if not callable(handler):
                 raise ValueError(f"function is missing: {function_name}")
+            context_provider = None
+            context_name = str(item.get("agent_context_function", "")).strip()
+            if context_name:
+                context_provider = getattr(module, context_name, None)
+                if not callable(context_provider):
+                    raise ValueError(f"agent context function is missing: {context_name}")
             parameters = item.get("parameters", {"type": "object", "properties": {}})
             if not isinstance(parameters, dict):
                 raise ValueError(f"parameters must be an object: {name}")
@@ -109,7 +116,7 @@ class ToolRegistry:
             triggers = item.get("triggers")
             if triggers:
                 schema["triggers"] = triggers
-            tools[name] = RegisteredTool(schema=schema, meta={**item, "plugin_id": plugin_id, "plugin_name_zh": manifest.get("name_zh", plugin_id)}, handler=handler)
+            tools[name] = RegisteredTool(schema=schema, meta={**item, "plugin_id": plugin_id, "plugin_name_zh": manifest.get("name_zh", plugin_id)}, handler=handler, context_provider=context_provider)
 
     @staticmethod
     def _required_text(data: dict[str, Any], key: str) -> str:
@@ -130,10 +137,14 @@ class ToolRegistry:
         ``execute()`` continues to resolve every model-returned name from the
         live registry.
         """
+        return self.candidate_context(text, limit)["schemas"]
+
+    def candidate_context(self, text: str, limit: int = 5) -> dict[str, list[Any]]:
+        """Candidate schemas plus plugin-owned prompt hints for one user turn."""
         self.refresh()
         query = self._normalize(text)
         if not query or limit < 1:
-            return []
+            return {"schemas": [], "agent_hints": []}
         with self._lock:
             ranked = [
                 (self._match_score(query, name, tool), position, name)
@@ -172,7 +183,17 @@ class ToolRegistry:
                             ordered.append(related_name)
                 if name not in ordered:
                     ordered.append(name)
-            return [self._tools[name].schema for name in ordered]
+            hints: list[str] = []
+            for name in ordered:
+                tool = self._tools[name]
+                declared = tool.meta.get("agent_hints", [])
+                if isinstance(declared, list):
+                    hints.extend(str(hint).strip() for hint in declared if str(hint).strip())
+                if tool.context_provider is not None:
+                    value = str(tool.context_provider()).strip()
+                    if value:
+                        hints.append(value)
+            return {"schemas": [self._tools[name].schema for name in ordered], "agent_hints": list(dict.fromkeys(hints))}
 
     def result_required(self, name: str) -> bool:
         """Whether a later call must wait for this tool's result."""
@@ -298,6 +319,10 @@ def tool_schemas() -> list[dict[str, Any]]:
 
 def candidate_tool_schemas(text: str, limit: int = 5) -> list[dict[str, Any]]:
     return _registry.candidate_schemas(text, limit)
+
+
+def candidate_tool_context(text: str, limit: int = 5) -> dict[str, list[Any]]:
+    return _registry.candidate_context(text, limit)
 
 
 def execute(call: dict[str, Any]) -> dict[str, Any]:

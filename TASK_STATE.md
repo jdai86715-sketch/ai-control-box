@@ -53,6 +53,7 @@
 - Qwen 每一次实际请求的 system prompt 与候选工具名会作为 display-only SSE 事件写入现有折叠的 `Reasoning & context`：初始请求显示基础/天气提示；工具结果回喂后以新 `user` 消息重发原用户任务、已解析参数和下一步提示。system prompt 本轮固定不再追加临时任务；展示不改请求内容、不额外注入 schema，也不展示未发送的完整 schema。
 - Qwen 的 llama-server 现以单槽启动，并设置 `--cache-reuse 256`；每次 Qwen 请求也显式发送 `cache_prompt: true` 与 `id_slot: 0`，目标是让同一条网页输入的连续工具步骤复用共同 prompt 前缀的 KV，而不是被多槽调度打散。该启动参数需要重启服务才会生效。
 - 已用同一份约 900 token prompt 连续请求两次真实验证 KV 生效：首次 6.808 秒，第二次 0.066 秒。此版本 `/slots` 在请求完成后仍会显示 `n_prompt_tokens_cache: 0`，不作为命中判据。南京已真实完成地点搜索→天气查询；Open-Meteo 对“厦门”中文查询返回空、对 `Xiamen` 返回厦门市，中文地点 fallback 尚未设计。
+- Qwen 已不再硬编码天气/地点名或读取天气设置：当前候选插件的 manifest `agent_hints` 与可选 `agent_context_function` 由动态注册表通用收集后注入。天气插件自己声明地点调用规则并提供默认地点上下文；工具是否产生工具后回灌仍由其结果中的 `agent_continuation` 决定，宿主只负责通用转发。
 
 ## 下一步
 

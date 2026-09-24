@@ -5,7 +5,6 @@ from typing import Any, Callable, Generator
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
-from .config import get_settings
 from .runtime_manager import RuntimeManager
 
 
@@ -15,25 +14,26 @@ class QwenModel:
     _BASE_INSTRUCTION = "你运行在 AI 控制盒的单轮对话中。普通问题直接回答；需要当前真实信息或执行动作时使用提供的工具。不要编造真实状态。工具结果后，必要时继续调用工具；任务完成后自然回答。"
     _TOOL_CALL_INSTRUCTION = "当提供的工具能完成用户明确请求时，直接返回 native tool_call；不要用文字声称自己不能调用工具。"
 
-    def __init__(self, runtime: RuntimeManager, model_id: str, schemas: Callable[[str], list[dict[str, Any]]]) -> None:
+    def __init__(self, runtime: RuntimeManager, model_id: str, tool_context: Callable[[str], dict[str, list[Any]]]) -> None:
         self._runtime = runtime
         self._model_id = model_id
-        self._schemas = schemas
+        self._tool_context = tool_context
         self._messages: list[dict[str, Any]] = []
         self._pending_calls: list[dict[str, Any]] = []
         self._active_schemas: list[dict[str, Any]] = []
+        self._active_hints: list[str] = []
         self._user_request = ""
         self._pending_user_injections: list[str] = []
 
     def plan(self, text: str) -> dict[str, Any]:
-        self._active_schemas = self._schemas(text)
+        self._set_tool_context(text)
         self._start_turn()
         self._user_request = text
         self._messages.append({"role": "user", "content": text})
         return self._complete("Qwen native tools")
 
     def plan_stream(self, text: str) -> Generator[dict[str, Any], None, dict[str, Any]]:
-        self._active_schemas = self._schemas(text)
+        self._set_tool_context(text)
         self._start_turn()
         self._user_request = text
         self._messages.append({"role": "user", "content": text})
@@ -51,6 +51,7 @@ class QwenModel:
         self._messages = []
         self._pending_calls = []
         self._active_schemas = []
+        self._active_hints = []
         self._user_request = ""
         self._pending_user_injections = []
 
@@ -67,16 +68,16 @@ class QwenModel:
             instruction = self._BASE_INSTRUCTION
             if self._active_schemas:
                 instruction += self._TOOL_CALL_INSTRUCTION
-            if any(schema.get("name") == "get_weather" for schema in self._active_schemas):
-                location = get_settings()["location"]
-                instruction += (
-                    f" 默认天气位置是{location['city']}（{location['latitude']}, {location['longitude']}）。"
-                    "用户没有指定地点时，调用 get_weather 且不传 location_id；"
-                    "用户指定地点时，先调用 search_location，再把返回的 location_id 传给 get_weather；绝不能编造 location_id。"
-                )
+            if self._active_hints:
+                instruction += " " + " ".join(self._active_hints)
             self._messages = [
                 {"role": "system", "content": instruction},
             ]
+
+    def _set_tool_context(self, text: str) -> None:
+        context = self._tool_context(text)
+        self._active_schemas = list(context.get("schemas") or [])
+        self._active_hints = [str(hint) for hint in context.get("agent_hints") or [] if str(hint).strip()]
 
     def _append_results(self, results: list[dict[str, Any]]) -> None:
         for call, result in zip(self._pending_calls, results):
