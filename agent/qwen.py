@@ -99,6 +99,7 @@ class QwenModel:
 
     def _complete(self, reasoning: str) -> dict[str, Any]:
         body: dict[str, Any] = {"messages": self._messages, "temperature": 0, "max_tokens": 512}
+        prompt_context = self._prompt_context()
         if self._active_schemas:
             body.update({"tools": [{"type": "function", "function": schema} for schema in self._active_schemas], "tool_choice": "auto"})
         data = self._post("/v1/chat/completions", body)
@@ -107,7 +108,7 @@ class QwenModel:
         self._messages.append(message)
         calls = self._calls_from_message(message)
         self._pending_calls = calls
-        return {"reply": message["content"], "function_calls": calls, "reasoning": reasoning, "decode_tps": None}
+        return {"reply": message["content"], "function_calls": calls, "reasoning": reasoning, "decode_tps": None, "prompt_context": prompt_context}
 
     def _complete_stream(self, reasoning: str) -> Generator[dict[str, Any], None, dict[str, Any]]:
         content: list[str] = []
@@ -118,6 +119,7 @@ class QwenModel:
             "max_tokens": 512,
             "stream": True,
         }
+        prompt_context = self._prompt_context()
         if self._active_schemas:
             body.update({
                 "tools": [{"type": "function", "function": schema} for schema in self._active_schemas],
@@ -150,7 +152,14 @@ class QwenModel:
         self._messages.append(message)
         calls = self._calls_from_message(message)
         self._pending_calls = calls
-        return {"reply": message["content"], "function_calls": calls, "reasoning": reasoning, "decode_tps": None}
+        return {"reply": message["content"], "function_calls": calls, "reasoning": reasoning, "decode_tps": None, "prompt_context": prompt_context}
+
+    def _prompt_context(self) -> dict[str, Any]:
+        """A display-only snapshot of what this request sends to Qwen."""
+        return {
+            "system_prompt": str(self._messages[0].get("content", "")) if self._messages else "",
+            "tool_names": [str(schema.get("name", "")) for schema in self._active_schemas],
+        }
 
     def _calls_from_message(self, message: dict[str, Any]) -> list[dict[str, Any]]:
         calls = self._native_calls(message.get("tool_calls") or [])

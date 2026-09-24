@@ -49,6 +49,12 @@ function appendTrace(state, value) {
   scrollConversation();
 }
 
+function appendPromptContext(state, event) {
+  const {system_prompt: prompt, tool_names: names} = event.context || {};
+  appendTrace(state, `${event.phase} · injected tools: ${(names || []).join(', ') || 'none'}`);
+  if (prompt) appendTrace(state, `System prompt:\n${prompt}`);
+}
+
 function moveDraftToTrace(state) {
   if (!state.draft) return;
   appendTrace(state, `Model: ${state.draft}`);
@@ -68,6 +74,8 @@ function handleAgentEvent(state, event) {
     appendTrace(state, `Step ${event.step} · ${event.call.name}(${JSON.stringify(event.call.arguments)})`);
   } else if (event.type === 'tool_result') {
     appendTrace(state, `Step ${event.step} · ${event.result.message}`);
+  } else if (event.type === 'prompt_context') {
+    appendPromptContext(state, event);
   } else if (event.type === 'limit') {
     appendTrace(state, event.message);
   } else if (event.type === 'error') {

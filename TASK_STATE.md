@@ -50,6 +50,7 @@
 - 新增热插拔 `location_lookup` 插件及 `search_location(query)`：它只取 Open-Meteo 地理编码第一项并返回 `location_id`。天气工具扩展为默认或指定地点的 `current`、`hourly`、`daily` 三种视图，可限制字段、小时数或天数。
 - 连续工具依赖使用通用 manifest/result 协议：`result_required` 会让宿主在该工具结果返回前暂停同批后续调用；结果内的 `agent_continuation` 会带原用户任务和已解析参数回喂模型，模型仍自行产生下一次调用。没有新增执行白名单或天气专用执行分支。
 - 已在单一干净的 Qwen 3B llama-server 实例中真实验证：`上海天气怎么样` 依次调用 `search_location(上海)` 与带真实 `location_id` 的 `get_weather`；`帮我查上海未来3小时温度` 同样完成两步并保留 `view=hourly`、`hours=3`。
+- Qwen 每一次实际请求的 system prompt 与候选工具名会作为 display-only SSE 事件写入现有折叠的 `Reasoning & context`：初始请求显示基础/天气提示，工具结果回喂后显示原用户任务、已解析参数和下一步提示。展示不改请求内容、不额外注入 schema，也不展示未发送的完整 schema。
 
 ## 下一步
 

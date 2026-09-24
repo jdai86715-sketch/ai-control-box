@@ -83,6 +83,8 @@ class ControlBox:
         yield {"type": "turn_start", "context": {"model_kind": model_kind, "declared_tool_schemas": declared_schema_count, "max_steps": MAX_AGENT_STEPS}}
         try:
             response = yield from self._model.plan_events(text)
+            if response.get("prompt_context"):
+                yield {"type": "prompt_context", "phase": "Input", "context": response["prompt_context"]}
             while steps < MAX_AGENT_STEPS:
                 step_calls = _unique_calls(response.get("function_calls") or [])
                 if not step_calls:
@@ -112,6 +114,8 @@ class ControlBox:
                         self._model.keep_pending_calls(len(batch_results))
                         break
                 response = yield from self._model.feed_result_events(batch_results)
+                if response.get("prompt_context"):
+                    yield {"type": "prompt_context", "phase": "Tool-result feedback", "context": response["prompt_context"]}
                 if limit_reached:
                     break
             else:
