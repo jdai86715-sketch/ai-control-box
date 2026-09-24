@@ -23,6 +23,7 @@ class QwenModel:
         self._pending_calls: list[dict[str, Any]] = []
         self._active_schemas: list[dict[str, Any]] = []
         self._user_request = ""
+        self._pending_user_injections: list[str] = []
 
     def plan(self, text: str) -> dict[str, Any]:
         self._active_schemas = self._schemas(text)
@@ -51,6 +52,7 @@ class QwenModel:
         self._pending_calls = []
         self._active_schemas = []
         self._user_request = ""
+        self._pending_user_injections = []
 
     def keep_pending_calls(self, count: int) -> None:
         """Discard calls emitted before a result-required tool returned."""
@@ -90,16 +92,19 @@ class QwenModel:
         if not tool or not isinstance(arguments, dict) or not self._messages:
             return
         instruction = (
-            f" 原用户任务：{self._user_request}。已完成前一步工具调用。"
-            f"任务尚未完成：现在调用 {tool}，必须包含已解析参数 "
+            f"继续完成以下原始用户请求：{self._user_request}\n"
+            "上一步工具已经完成。"
+            f"现在调用 {tool}，必须包含已解析参数 "
             f"{json.dumps(arguments, ensure_ascii=False)}；保留原任务中要求的其他参数。"
             "拿到该工具结果前不要回答或猜测。"
         )
-        self._messages[0]["content"] += instruction
+        self._messages.append({"role": "user", "content": instruction})
+        self._pending_user_injections.append(instruction)
 
     def _complete(self, reasoning: str) -> dict[str, Any]:
         body: dict[str, Any] = {"messages": self._messages, "temperature": 0, "max_tokens": 512}
         prompt_context = self._prompt_context()
+        self._pending_user_injections = []
         if self._active_schemas:
             body.update({"tools": [{"type": "function", "function": schema} for schema in self._active_schemas], "tool_choice": "auto"})
         data = self._post("/v1/chat/completions", body)
@@ -120,6 +125,7 @@ class QwenModel:
             "stream": True,
         }
         prompt_context = self._prompt_context()
+        self._pending_user_injections = []
         if self._active_schemas:
             body.update({
                 "tools": [{"type": "function", "function": schema} for schema in self._active_schemas],
@@ -159,6 +165,7 @@ class QwenModel:
         return {
             "system_prompt": str(self._messages[0].get("content", "")) if self._messages else "",
             "tool_names": [str(schema.get("name", "")) for schema in self._active_schemas],
+            "user_injections": list(self._pending_user_injections),
         }
 
     def _calls_from_message(self, message: dict[str, Any]) -> list[dict[str, Any]]:

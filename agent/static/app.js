@@ -50,9 +50,10 @@ function appendTrace(state, value) {
 }
 
 function appendPromptContext(state, event) {
-  const {system_prompt: prompt, tool_names: names} = event.context || {};
+  const {system_prompt: prompt, tool_names: names, user_injections: injections} = event.context || {};
   appendTrace(state, `${event.phase} · injected tools: ${(names || []).join(', ') || 'none'}`);
   if (prompt) appendTrace(state, `System prompt:\n${prompt}`);
+  for (const injection of injections || []) appendTrace(state, `Reinjected user request:\n${injection}`);
 }
 
 function moveDraftToTrace(state) {
