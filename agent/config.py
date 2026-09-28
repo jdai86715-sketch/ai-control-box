@@ -9,6 +9,7 @@ from typing import Any
 
 SETTINGS_PATH = Path(__file__).parent.parent / "settings" / "environment.json"
 MODEL_SETTINGS_PATH = Path(__file__).parent.parent / "settings" / "models.json"
+DEVICE_LOCATIONS_PATH = Path(__file__).parent.parent / "settings" / "device_locations.json"
 
 
 def get_settings() -> dict[str, Any]:
@@ -38,3 +39,7 @@ def save_model_settings(data: dict[str, Any]) -> dict[str, Any]:
     if "qwen" in data: current["qwen"].update(data["qwen"])
     MODEL_SETTINGS_PATH.write_text(json.dumps(current, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
     return current
+
+
+def get_device_locations() -> dict[str, Any]:
+    return json.loads(DEVICE_LOCATIONS_PATH.read_text(encoding="utf-8"))

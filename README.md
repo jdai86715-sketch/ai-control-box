@@ -1,8 +1,8 @@
 # AI 控制盒
 
-一个在 Windows 上运行的本地工具调用原型。页面接收一句指令，Needle 只输出结构化工具调用，Python 再从已注册工具表中执行对应函数，并把固定中文结果显示回页面。
+一个在 Windows 上运行的本地工具调用原型。默认使用通过 llama.cpp 运行的 Qwen 小模型，将中文或英文指令变成结构化工具调用；Python 再从已注册工具表中执行对应函数，并把固定中文结果显示回页面。
 
-它不是聊天模型：Needle 3 的职责只是把指令变成 `name + arguments` JSON。
+它不是开放式聊天模型：模型的职责只是把指令变成受限的 `name + arguments` JSON。
 
 ## 启动
 
@@ -44,9 +44,9 @@ ai-control-box/
 ```mermaid
 flowchart TD
     A[用户输入] --> B[web.py: ControlBox.chat]
-    B --> C[Needle 内置工具检索]
+    B --> C[Qwen 工具检索]
     C --> D[从完整工具表选 top-5 schema]
-    D --> E[Needle.complete: function_calls JSON]
+    D --> E[Qwen llama-server: function_calls JSON]
     E --> F[execute: 按注册表 name 找 Python 函数]
     F --> G[ToolResult JSON 回喂同一模型会话]
     G --> H[继续调用或结束]
@@ -55,7 +55,7 @@ flowchart TD
 
 例如输入 `turn on the bedroom light to 20 percent`：
 
-1. 运行时扫描所有已安装插件，合并成完整英文工具表；Needle 从中以内置检索选出最多 5 个候选 schema。
+1. 运行时扫描所有已安装插件，合并成完整工具表；Qwen 从中检索最多 5 个候选 schema，并同时看到对应的中文工具说明。
 2. Needle 只在本轮上下文看到候选 schema，返回：
 
    ```json
@@ -63,12 +63,12 @@ flowchart TD
    ```
 
 3. `execute()` 从 `TOOLS` 注册表取出 `set_light(**arguments)` 执行。
-4. 工具结果 JSON 回喂 Needle；它可继续调用其他工具或结束。
+4. 一个指令中的工具结果由页面显示；同一轮 Qwen 可以输出多个独立动作。
 5. 页面显示 `卧室灯已打开，亮度 20%`。
 
 每条网页输入都是独立的模型会话。工具结果只在当前输入的最多三步循环内回喂，不会污染下一条设备指令。
 
-Needle 在工具超过 5 个时会自动以其内置检索头选择 top-5 并约束调用语法。对 `time`、`fan`、`weather` 这类明确英文领域词，schema 还附有 Needle 原生触发规则，确保检索时不会漏掉对应候选；应用本身不直接选择或执行工具。`models/needle-tools.idx` 是传给 Needle 的索引持久化路径；它不是权重，也不会执行工具。没命中时，系统返回空 `function_calls`。
+Qwen 在工具超过 5 个时通过 llama-server 的 embedding 接口检索 top-5 候选；每个候选都带有中文名称、描述和参数别名，便于理解“打开卧室灯”“客厅风扇关掉”等指令。应用本身不直接选择或执行工具。没命中时，系统返回空 `function_calls`。
 
 ## 工具插件与自动更新
 
@@ -90,16 +90,37 @@ esp32_ir/
 
 | 工具 | 作用 |
 | --- | --- |
-| `set_light(room, brightness)` | 模拟灯光和亮度 |
-| `set_fan(room, level)` | 模拟风扇档位 |
+| `set_light(room, brightness)` | 模拟灯光和亮度；`brightness: 0` 关闭 |
+| `set_fan(room, level)` | 模拟风扇档位；`level: 0` 关闭 |
 | `get_temperature(room)` | 模拟房间温度 |
 | `get_system_time()` | Windows 系统时间 |
-| `get_weather()` | 当前配置坐标的实时天气 |
+| `resolve_city(city)` | 将城市名称转换为城市 ID、经纬度 |
+| `get_device_location(device)` | 查询模拟设备的当前城市与经纬度 |
+| `get_weather(city, latitude, longitude)` | 查询指定城市或当前配置坐标的实时天气 |
 | `list_tools()` | 输出英文 `name / description` 工具表 |
 
 天气调用 Open-Meteo；位置由 [settings/environment.json](settings/environment.json) 决定，也可在网页右上角齿轮中修改。城市字段用于显示，经纬度才是实际查询依据。
 
-## Needle 模型与运行文件
+## Qwen 小模型与运行文件
+
+默认模型为 Qwen，经本机 llama.cpp 的 `llama-server` 调用；仓库不附带模型权重。把兼容的 Qwen 2.5 1.5B Instruct GGUF（建议 Q4 量化）放到本机任意目录，然后先启动 llama-server。例如：
+
+```cmd
+llama-server -m D:\models\qwen2.5-1.5b-instruct-q4_k_m.gguf --embedding --port 8080
+```
+
+保持此窗口运行后，再双击 `run.bat`。设置页中的 `llama-server` 和 `embedding server` 默认均为 `http://127.0.0.1:8080`，需要使用不同服务时可分别填写。模型未启动时，页面会显示“Qwen llama-server 不可用”，不会执行任何工具。
+
+GitHub 仓库只包含源码和下载脚本，不包含大模型或编译好的运行程序。首次使用时运行 `runtime/setup-qwen.ps1`，它会下载 llama.cpp 与 Qwen 到当前项目；再双击 `runtime/start-llama-server.bat`，让 AI Control Box 或同一台电脑上的其他应用使用 `http://127.0.0.1:8080`；详细说明见 `runtime/README.md`。
+
+可直接输入：`打开卧室灯，亮度 40%`、`把客厅风扇调到 2 档`、`关闭厨房灯`、`卧室现在多少度`。房间支持卧室、客厅、厨房；模型会转换成受限的英文工具参数，工具层也可识别这些中文房间名。
+
+查询城市天气会自动使用两步工具链。例如“南京的天气怎么样”先调用 `resolve_city("南京")`，获得城市 ID、纬度和经度；再调用 `get_weather(...)` 返回实时天气。该链路最多继续一步，避免无状态模型重复执行设备动作。
+
+查询设备所在地天气同样使用两步工具链。例如“客厅传感器当前位置的天气怎么样”先调用 `get_device_location("living_room_sensor")`，再用该设备的城市和坐标调用 `get_weather(...)`。三个初始模拟设备及其位置保存在 `settings/device_locations.json`，可直接修改城市和经纬度；它们不是实时 GPS 数据。
+
+
+## 可选的 Needle 模型与运行文件
 
 当前仓库**不带模型文件**。`agent/needle.py` 创建的是 `needle.Needle(..., generation=3)`，没有传入 `weights` 路径，因此 `cactus-needle==3.0.1` 自动使用用户缓存：
 
@@ -121,9 +142,9 @@ C:\Users\<用户名>\.cache\cactus-needle\v3\3.0.1\needle3.cact
 3. 在 `tool.py` 写同名函数并返回 `ToolResult`；保存后自动扫描。
 4. 通过网页提交一条明确英文指令，确认 JSON、执行结果都正确。
 
-小模型的 schema 与演示指令目前以英文为主；内置检索也依赖这些英文工具描述，不能替代模型本身的中文理解能力。
+Qwen 的检索资料和提示词包含中文工具说明，但它仍只能调用已注册的工具；它不能控制真实设备，也不会执行任意系统命令。
 
-执行前会检查原始指令中的参数范围。例如风扇只接受 `level` 1～3，`fan speed 100` 会返回 `set_fan: level must be between 1 and 3.`，不会忽略 `100` 后执行默认档位。当前房间仅支持 `bedroom`、`living room`、`kitchen`。
+执行前会检查原始指令中的参数范围。例如风扇只接受 `level` 0～3，`fan speed 100` 会返回 `set_fan: level must be between 0 and 3.`，不会忽略 `100` 后执行默认档位。当前房间仅支持 `bedroom`、`living room`、`kitchen` 及其中文名称。
 
 每次成功调用底部会显示 `耗时 · tok/s`，例如 `0.18s · 557 tok/s`。耗时覆盖模型筛选、Needle 推理与工具执行；`tok/s` 使用 Needle 返回的生成速度。
 

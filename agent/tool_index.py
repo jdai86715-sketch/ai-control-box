@@ -12,4 +12,11 @@ class ToolVectorIndex:
         return [self.schemas[i] for i in sorted(range(len(scores)), key=scores.__getitem__, reverse=True)[:5]]
     def _embed(self, text: str) -> list[float]:
         request=Request(self.url+"/embedding", data=json.dumps({"content":text}).encode(), headers={"Content-Type":"application/json"})
-        with urlopen(request, timeout=30) as response: return json.loads(response.read())["embedding"]
+        with urlopen(request, timeout=30) as response:
+            payload = json.loads(response.read())
+        # llama.cpp returns an OpenAI-style list, while older compatible
+        # servers returned one object.  Both forms carry the same vector.
+        if isinstance(payload, list):
+            payload = payload[0] if payload else {}
+        vector = payload["embedding"]
+        return vector[0] if vector and isinstance(vector[0], list) else vector

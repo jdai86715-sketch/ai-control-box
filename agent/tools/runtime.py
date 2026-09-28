@@ -73,7 +73,11 @@ class ToolRegistry:
     def _filesystem_signature(self) -> str:
         self.plugins_path.mkdir(parents=True, exist_ok=True)
         digest = sha256()
-        for path in sorted(item for item in self.plugins_path.rglob("*") if item.is_file()):
+        for path in sorted(
+            item
+            for item in self.plugins_path.rglob("*")
+            if item.is_file() and "__pycache__" not in item.parts and item.suffix != ".pyc"
+        ):
             stat = path.stat()
             digest.update(str(path.relative_to(self.plugins_path)).replace("\\", "/").encode())
             digest.update(f"{stat.st_mtime_ns}:{stat.st_size}".encode())
@@ -121,6 +125,26 @@ class ToolRegistry:
         self.refresh()
         with self._lock:
             return [tool.schema for tool in self._tools.values()]
+
+    def qwen_schemas(self) -> list[dict[str, Any]]:
+        """Return schemas enriched with display metadata for Chinese Qwen prompts.
+
+        The executor still accepts only the original tool names and arguments;
+        these extra fields are prompt context, never executable instructions.
+        """
+        self.refresh()
+        with self._lock:
+            return [
+                {
+                    **tool.schema,
+                    "x_chinese": {
+                        "name": tool.meta.get("name_zh", name),
+                        "description": tool.meta.get("description_zh", tool.schema["description"]),
+                        "parameter_aliases": tool.meta.get("parameter_aliases", {}),
+                    },
+                }
+                for name, tool in self._tools.items()
+            ]
 
     def list_tools(self) -> list[dict[str, str]]:
         self.refresh()
@@ -204,6 +228,10 @@ def get_registry() -> ToolRegistry:
 
 def tool_schemas() -> list[dict[str, Any]]:
     return _registry.schemas()
+
+
+def qwen_tool_schemas() -> list[dict[str, Any]]:
+    return _registry.qwen_schemas()
 
 
 def execute(call: dict[str, Any]) -> dict[str, Any]:

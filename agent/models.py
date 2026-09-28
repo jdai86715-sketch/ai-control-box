@@ -2,11 +2,10 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .needle import NeedleModel
 from .qwen import QwenModel
 from .tool_index import ToolVectorIndex
 from .config import get_model_settings
-from .tools import get_registry, tool_schemas
+from .tools import get_registry, qwen_tool_schemas, tool_schemas
 
 
 TOOL_INDEX_PATH = Path(__file__).parent.parent / "models" / "needle-tools.idx"
@@ -26,7 +25,11 @@ class ModelRouter:
         registry.refresh()
         settings = get_model_settings()
         if self._model is None or self._tool_version != registry.version or self._active_model != settings["active_model"]:
-            self._model = NeedleModel(tool_schemas(), str(TOOL_INDEX_PATH)) if settings["active_model"] == "needle" else QwenModel(settings["qwen"]["llama_server_url"], ToolVectorIndex(settings["qwen"]["embedding_server_url"], tool_schemas()))
+            if settings["active_model"] == "needle":
+                from .needle import NeedleModel
+                self._model = NeedleModel(tool_schemas(), str(TOOL_INDEX_PATH))
+            else:
+                self._model = QwenModel(settings["qwen"]["llama_server_url"], ToolVectorIndex(settings["qwen"]["embedding_server_url"], qwen_tool_schemas()))
             self._tool_version = registry.version
             self._active_model = settings["active_model"]
 
@@ -38,7 +41,7 @@ class ModelRouter:
     def feed_results(self, results: list[dict[str, Any]]) -> dict[str, Any]:
         self._ensure_current()
         assert self._model is not None
-        return self._model.plan(json.dumps(results, ensure_ascii=False))
+        return self._model.feed_results(results)
 
     def reset(self) -> None:
         self._ensure_current()

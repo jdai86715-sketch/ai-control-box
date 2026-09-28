@@ -3,3 +3,6 @@ __pycache__/
 *.py[cod]
 models/*.cact
 models/*.idx
+models/*.gguf
+runtime/llama.cpp/
+runtime/*.zip

@@ -1,0 +1,28 @@
+{
+  "devices": [
+    {
+      "id": "control_box",
+      "name": "控制盒",
+      "aliases": ["主设备", "控制盒设备"],
+      "city": "北京",
+      "latitude": 39.9075,
+      "longitude": 116.39723
+    },
+    {
+      "id": "bedroom_sensor",
+      "name": "卧室传感器",
+      "aliases": ["卧室设备", "卧室传感器设备"],
+      "city": "上海",
+      "latitude": 31.2304,
+      "longitude": 121.4737
+    },
+    {
+      "id": "living_room_sensor",
+      "name": "客厅传感器",
+      "aliases": ["客厅设备", "客厅传感器设备"],
+      "city": "南京",
+      "latitude": 32.0603,
+      "longitude": 118.7969
+    }
+  ]
+}

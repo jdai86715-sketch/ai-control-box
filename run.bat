@@ -3,7 +3,7 @@ setlocal
 cd /d "%~dp0"
 
 if not exist ".venv\Scripts\python.exe" (
-  py -3 -m venv .venv
+  python -m venv .venv
   if errorlevel 1 (
     echo Failed to create .venv. Install Python 3 and run again.
     pause
